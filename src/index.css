@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 🔥 BRAND COLORS - Kept your vibe, made it richer */
+    --primary: 214 88% 35%;   /* #0D56A7 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 260 34% 28%; /* #423068 */
+    --secondary-foreground: 0 0% 100%;
+
+    /* 🌍 BACKGROUND SYSTEM - Brighter for better card contrast */
+    --background: 210 30% 98%;      
+    --foreground: 222 47% 11%;
+
+    /* 🧱 SURFACE LEVELS */
+    --card: 0 0% 100%;              
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --surface: 210 20% 96%;         
+    --surface-2: 210 20% 92%;       
+
+    /* 💬 CHAT / UI */
+    --chat-bg: 210 20% 96%;
+    --chat-user: 214 88% 35%;
+    --chat-bot: 0 0% 100%;
+
+    /* 🪶 MUTED & BORDERS - Fixed visibility issues! */
+    --muted: 210 20% 90%;
+    --muted-foreground: 215 16% 40%; /* Darkened for much better readability */
+
+    --accent: 214 100% 96%;
+    --accent-foreground: 214 88% 35%;
+
+    --border: 214 20% 86%; /* Crisper borders */
+    --input: 214 20% 86%;
+    --ring: 214 88% 35%;
+
+    --radius: 0.8rem; /* Smooth modern curves */
+
+    /* 🌫 SHADOWS - Softer, layered shadows for a premium "Apple" feel */
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-md: 0 8px 20px rgba(0,0,0,0.06);
+    --shadow-lg: 0 16px 32px rgba(0,0,0,0.08);
+    --shadow-brand: 0 10px 30px hsl(var(--primary) / 0.25);
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  /* 🌙 DARK MODE - Re-balanced for true elegance */
+  .dark {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --surface: 222 47% 7%;
+    --surface-2: 222 47% 10%;
+
+    --chat-bg: 222 47% 10%;
+    --chat-user: 214 88% 45%;
+    --chat-bot: 222 47% 12%;
+
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 70%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 214 88% 50%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.4);
+    --shadow-md: 0 8px 20px rgba(0,0,0,0.5);
+    --shadow-lg: 0 16px 32px rgba(0,0,0,0.6);
+    --shadow-brand: 0 10px 30px hsl(var(--primary) / 0.4);
+  }
+}
+
+/* BASE RESET */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    /* Added antialiased & custom text selection color for a high-end feel */
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    @apply font-bold tracking-tight;
+  }
+
+  /* 🔥 FIX 1: If using standard HTML <select> and <option> tags */
+  select, option, optgroup {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+  }
+}
+
+/* 🔥 UTILITIES (Completely overhauled for theme compatibility) */
+@layer utilities {
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+  }
+
+  .gradient-bg {
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  }
+
+  .card-ui {
+    /* Added a subtle hover transition for better interactivity */
+    @apply bg-card rounded-xl shadow-md border transition-all duration-300 hover:shadow-lg;
+  }
+
+  .section-bg {
+    @apply bg-[hsl(var(--surface))];
+  }
+
+  .section-alt {
+    @apply bg-[hsl(var(--surface-2))];
+  }
+
+  .chat-bg {
+    @apply bg-[hsl(var(--chat-bg))];
+  }
+
+  .shadow-brand {
+    box-shadow: var(--shadow-brand);
+  }
+
+  /* 💎 FIXED GLASSMORPHISM - Now adapts to light/dark mode perfectly */
+  .glass {
+    @apply bg-background/70 backdrop-blur-md border border-border/50 shadow-sm;
+  }
+
+  /* 🔥 FIX 2: Helper class for custom React dropdowns (like shadcn/ui or Headless UI) */
+  .solid-dropdown {
+    @apply bg-card z-[100] shadow-md border border-border relative isolate;
+  }
+}

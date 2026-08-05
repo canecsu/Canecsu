@@ -1,0 +1,1 @@
+ALTER TYPE public.creator_category ADD VALUE IF NOT EXISTS 'artist';
