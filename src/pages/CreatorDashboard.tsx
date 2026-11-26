@@ -221,18 +221,18 @@ const CreatorDashboard = () => {
     if (!user) return;
 
     // 🛡️ SECURITY: Run content checks to ensure no numbers/emails are in the public bio or specializations
-    const bioViolation = checkContentViolations(bio);
+    const bioViolation = checkContentViolations(bio, "bio");
     if (bioViolation) {
       toast.error("Profile Update Blocked", {
-        description: `Your bio contains ${bioViolation.toLowerCase()}. Sharing direct contact information is strictly prohibited on this platform.`
+        description: moderationDescription(bioViolation, "bio")
       });
       return;
     }
 
-    const specViolation = checkContentViolations(specializations);
+    const specViolation = checkContentViolations(specializations, "specializations");
     if (specViolation) {
       toast.error("Profile Update Blocked", {
-        description: `Your specializations contain ${specViolation.toLowerCase()}. Sharing direct contact information is strictly prohibited.`
+        description: moderationDescription(specViolation, "specializations")
       });
       return;
     }
