@@ -1114,8 +1114,12 @@ ${quoteMessage}`;
                  <Heart className={cn("h-6 w-6 transition-transform active:scale-75", isProjectLiked && "fill-current")} /> 
                  {isProjectLiked ? "Liked" : "Like Project"} ({projectLikesCount})
                </Button>
-               <Button variant="outline" className="rounded-full bg-transparent text-white border-white/20 hover:bg-white/10 font-bold gap-2">
-                 <Share2 className="h-4 w-4" /> Share
+               <Button
+                 variant="outline"
+                 onClick={handleProjectShare}
+                 className="rounded-full bg-transparent text-white border-white/20 hover:bg-white/10 font-bold gap-2"
+               >
+                 <Share2 className="h-4 w-4" /> Share ({projectSharesCount})
                </Button>
             </div>
 
@@ -1175,21 +1179,62 @@ ${quoteMessage}`;
                                 <p className="text-white font-bold text-sm">{comment.profiles?.name || "Anonymous User"}</p>
                                 <span className="text-zinc-600 text-[10px]">•</span>
                                 <p className="text-zinc-500 text-xs font-medium">{new Date(comment.created_at).toLocaleDateString()}</p>
+                                {comment.updated_at && new Date(comment.updated_at).getTime() - new Date(comment.created_at).getTime() > 1000 && (
+                                  <span className="text-zinc-600 text-[10px]">Edited</span>
+                                )}
                               </div>
+                              {user?.id === comment.user_id && editingCommentId !== comment.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => startCommentEdit(comment)}
+                                  className="text-xs font-bold text-zinc-500 hover:text-white transition-colors"
+                                >
+                                  Edit
+                                </button>
+                              )}
                            </div>
-                           <p className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{comment.content}</p>
-                           
+                           {editingCommentId === comment.id ? (
+                             <div className="space-y-3">
+                               <Textarea
+                                 value={editingCommentText}
+                                 onChange={(event) => setEditingCommentText(event.target.value)}
+                                 className="w-full min-h-[90px] bg-[#1a1a1a] border-white/10 text-white rounded-xl resize-none"
+                               />
+                               <div className="flex justify-end gap-2">
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={cancelCommentEdit}
+                                   className="text-zinc-400 hover:text-white"
+                                 >
+                                   Cancel
+                                 </Button>
+                                 <Button
+                                   size="sm"
+                                   onClick={handleUpdateComment}
+                                   disabled={isUpdatingComment || !editingCommentText.trim()}
+                                   className="rounded-lg font-bold"
+                                 >
+                                   {isUpdatingComment ? "Saving..." : "Save"}
+                                 </Button>
+                               </div>
+                             </div>
+                           ) : (
+                             <p className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{comment.content}</p>
+                           )}
+
                            {/* COMMENT LIKE BUTTON */}
                            <div className="mt-4 flex items-center gap-4">
-                              <button 
+                              <button
+                                type="button"
                                 onClick={() => handleLikeComment(comment.id)}
                                 className={cn(
-                                  "flex items-center gap-1.5 text-xs font-bold transition-all duration-200", 
+                                  "flex items-center gap-1.5 text-xs font-bold transition-all duration-200",
                                   likedComments[comment.id] ? "text-red-500" : "text-zinc-500 hover:text-white"
                                 )}
                               >
-                                <Heart className={cn("h-4 w-4 transition-transform active:scale-75", likedComments[comment.id] && "fill-current")} /> 
-                                {likedComments[comment.id] ? 'Liked' : 'Like'}
+                                <Heart className={cn("h-4 w-4 transition-transform active:scale-75", likedComments[comment.id] && "fill-current")} />
+                                {likedComments[comment.id] ? "Liked" : "Like"} ({comment.likes_count || 0})
                               </button>
                            </div>
                         </div>
