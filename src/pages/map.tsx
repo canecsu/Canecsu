@@ -105,22 +105,25 @@ const cityCoords: Record<string, [number, number]> = {
 const categories = Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>;
 
 /* ---------------------------------------------------------
-   Working map style switcher — swaps the tile provider.
-   Each style is a real, no-key-required tile source.
+   Map style switcher.
+   CARTO now requires an API key for basemap tiles, so the
+   default styles use OpenStreetMap tiles instead.
 --------------------------------------------------------- */
+const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
 const mapStyles = [
   {
     id: "light",
     label: "Light",
     icon: Sun,
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    url: OSM_TILE_URL,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   {
     id: "dark",
     label: "Dark",
     icon: Moon,
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: OSM_TILE_URL,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   {
@@ -369,6 +372,9 @@ export default function ExploreMap() {
       .avatar-marker-inner { transition: transform 0.2s ease; }
       .avatar-marker-inner:hover { transform: translateY(-3px) scale(1.08); z-index: 1000; }
       .avatar-marker-live-dot { animation: liveDotPulse 1.8s ease-in-out infinite; }
+      .explore-map-dark .leaflet-tile-pane {
+        filter: invert(0.88) hue-rotate(180deg) brightness(0.78) contrast(0.92) saturate(0.82);
+      }
     `;
     document.head.appendChild(style);
   }, []);
@@ -663,7 +669,13 @@ export default function ExploreMap() {
               </div>
             ) : (
               <>
-                <MapContainer center={INDIA_CENTER} zoom={5} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                <MapContainer
+                  center={INDIA_CENTER}
+                  zoom={5}
+                  className={mapStyleId === "dark" ? "explore-map-dark" : undefined}
+                  style={{ height: '100%', width: '100%' }}
+                  zoomControl={false}
+                >
                   <TileLayer
                     key={activeMapStyle.id}
                     url={activeMapStyle.url}
