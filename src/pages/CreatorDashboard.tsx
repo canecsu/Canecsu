@@ -718,6 +718,7 @@ const CreatorDashboard = () => {
                   {badgePaymentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Crown className="h-4 w-4 mr-2" />}
                   {verificationBadge ? "Renew for ₹99" : "Activate for ₹99"}
                 </Button>
+                </div>
               </CardContent>
             </Card>
 
