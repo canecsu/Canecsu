@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const creatorCategories = [
@@ -23,6 +24,11 @@ const creatorCategories = [
   { value: "dj", label: "DJ" },
   { value: "music-band", label: "Music Band" },
 ];
+
+const normalizePhoneNumber = (value: string) => {
+  const digits = value.replace(/\\D/g, "");
+  return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+};
 
 const Register = () => {
   const [searchParams] = useSearchParams();
@@ -68,8 +74,9 @@ const Register = () => {
       toast.error("Please select your profession");
       return;
     }
-    if (!phone || phone.length < 10) {
-      toast.error("Please enter a valid phone number");
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!/^[6-9]\\d{9}$/.test(normalizedPhone)) {
+      toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
     if (!dob || age === null) {
@@ -89,6 +96,25 @@ const Register = () => {
       return;
     }
     setLoading(true);
+
+    const { data: existingPhone, error: phoneCheckError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("phone", normalizedPhone)
+      .maybeSingle();
+
+    if (phoneCheckError) {
+      setLoading(false);
+      toast.error("We couldn't verify this mobile number. Please try again.");
+      return;
+    }
+
+    if (existingPhone) {
+      setLoading(false);
+      toast.error("This mobile number is already registered. Please use another number.");
+      return;
+    }
+
     const { error } = await signUp(
       email,
       password,
@@ -96,7 +122,7 @@ const Register = () => {
       accountType,
       creatorType || undefined,
       {
-        phone,
+        phone: normalizedPhone,
         dob,
         is_minor: isMinor,
         guardian_email: isMinor ? guardianEmail : null,
