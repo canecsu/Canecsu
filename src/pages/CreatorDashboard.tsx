@@ -128,6 +128,9 @@ const CreatorDashboard = () => {
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [verificationBadge, setVerificationBadge] = useState<any | null>(null);
   const [badgePaymentLoading, setBadgePaymentLoading] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
+  );
 
   // Profile form
   const [bio, setBio] = useState("");
@@ -163,6 +166,21 @@ const CreatorDashboard = () => {
     if (user) fetchAll();
   }, [user, loading]);
 
+  const enableBrowserNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      toast.info("This browser does not support phone notifications.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    if (permission === "granted") {
+      toast.success("Phone alerts enabled for badge expiry reminders");
+    } else {
+      toast.info("Allow notifications in browser settings to receive phone alerts.");
+    }
+  };
+
   const ensureBadgeExpiryReminder = async (badge: any) => {
     if (!user || !badge?.expires_at) return;
     const reminder = getVerificationExpiryReminder(badge.expires_at);
@@ -185,6 +203,9 @@ const CreatorDashboard = () => {
         type: "verification_expiry",
         link: "/dashboard",
       });
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Canecsu badge reminder", { body: reminder.message });
+      }
     }
   };
 
@@ -683,11 +704,17 @@ const CreatorDashboard = () => {
                     })()}
                   </div>
                 </div>
-                <Button
-                  onClick={handleBuyVerificationBadge}
-                  disabled={badgePaymentLoading}
-                  className="shrink-0 rounded-full bg-amber-500 text-white hover:bg-amber-600 font-bold"
-                >
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {notificationPermission !== "granted" && notificationPermission !== "unsupported" && (
+                    <Button type="button" variant="outline" size="sm" onClick={enableBrowserNotifications} className="rounded-full border-red-200 text-red-600 hover:bg-red-50">
+                      Enable phone alerts
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleBuyVerificationBadge}
+                    disabled={badgePaymentLoading}
+                    className="rounded-full bg-amber-500 text-white hover:bg-amber-600 font-bold"
+                  >
                   {badgePaymentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Crown className="h-4 w-4 mr-2" />}
                   {verificationBadge ? "Renew for ₹99" : "Activate for ₹99"}
                 </Button>
