@@ -31,32 +31,82 @@ const creatorCategories = [
   { value: "music-band", label: "Music Band" },
 ];
 
-// 🛡️ SECURITY: 7 Strict Conditions to detect Contact Info
-const checkContentViolations = (text: string) => {
-  if (!text) return null;
-  
-  // 1. Standard Email Addresses
-  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text)) return "Email addresses";
-  
-  // 2. Standard Phone Numbers (e.g., +91 9876543210)
-  if (/(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/.test(text)) return "Phone numbers";
-  
-  // 3. Spaced/Hidden Phone Numbers (e.g., 9 8 7 6 5 4)
-  if (/\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d+/.test(text)) return "Hidden phone numbers";
-  
-  // 4. Social Media Mentions (ig: username, whatsapp: number)
-  if (/(ig|insta|instagram|whatsapp|telegram|snapchat|sc|twitter|discord|fb|facebook)\s*[:=-]?\s*@?[\w.-]+/i.test(text)) return "Social media usernames";
-  
-  // 5. Direct Chat Links (wa.me, t.me)
-  if (/(wa\.me|t\.me|linktr\.ee)\/[a-zA-Z0-9_]+/i.test(text)) return "Direct chat links";
-  
-  // 6. External Websites
-  if (/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.(com|in|net|org|co)\b)/i.test(text)) return "External website links";
-  
-  // 7. DM Requests (e.g., "dm me at @username")
-  if (/(dm|contact|message|msg)\s+(me\s+)?(at|on|@)\s*@?[\w.-]+/i.test(text)) return "Direct messaging requests";
+// High-confidence moderation for public profile text.
+// The previous version matched short substrings such as "sc" and treated
+// ordinary year ranges as phone numbers, causing false positives.
+type ModerationField = "bio" | "name";
+
+const normalizeModerationText = (value: string) =>
+  value
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const checkContentViolations = (text: string, field: ModerationField = "bio") => {
+  const normalized = normalizeModerationText(text);
+  if (!normalized) return null;
+
+  // Email addresses.
+  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(normalized)) {
+    return "Email addresses";
+  }
+
+  // Direct URLs and common domain names.
+  if (/(https?:\/\/[^\s]+|www\.[^\s]+|(?:[a-zA-Z0-9-]+\.)+(?:com|in|net|org|co)\b)/i.test(normalized)) {
+    return "External website links";
+  }
+
+  // Strong phone-number signal: 10+ digits in one phone-like chunk.
+  // This deliberately allows ordinary years such as 2015 or 2015-2024.
+  const phoneLikeChunks = normalized.match(/(?:\+?\d[\d\s().-]{8,}\d)/g) || [];
+  if (phoneLikeChunks.some((chunk) => (chunk.match(/\d/g) || []).length >= 10)) {
+    return "Phone numbers";
+  }
+
+  if (field === "bio") {
+    // Only detect social handles when a real @handle or an explicit
+    // platform + id/handle/username/profile label is present.
+    const hasSocialHandle = /(?:^|[\s([{])@[a-z0-9][a-z0-9_.-]{1,30}\b/i.test(normalized);
+    const hasSocialPlatform = /\b(?:instagram|insta|ig|facebook|fb|twitter|discord|telegram|snapchat|whatsapp|youtube|linkedin)\b/i.test(normalized);
+    const hasSocialIdLabel = /\b(?:id|handle|username|profile|account)\b/i.test(normalized);
+
+    if (hasSocialHandle || (hasSocialPlatform && hasSocialIdLabel)) {
+      return "Social media usernames";
+    }
+
+    if (/(?:wa\.me|t\.me|linktr\.ee)\/[a-zA-Z0-9_.-]+/i.test(normalized)) {
+      return "Direct chat links";
+    }
+
+    if (/(?:dm|direct message|message|msg|contact)\s+(?:me|us)\s+(?:on|at|via)\b/i.test(normalized)) {
+      return "Direct messaging requests";
+    }
+
+    // High-confidence explicit sexual-content terms only.
+    if (/\b(?:porn|pornography|nude|nudity|naked|xxx|escort(?:s)?|onlyfans|sex\s*work)\b/i.test(normalized)) {
+      return "Sexual content";
+    }
+  }
 
   return null;
+};
+
+const moderationDescription = (violation: string, field: ModerationField) => {
+  const subject = field === "name" ? "name" : "bio";
+  if (violation === "Sexual content") {
+    return "Your " + subject + " contains sexual content, which is not allowed.";
+  }
+  if (violation === "Social media usernames") {
+    return "Please remove social media IDs or usernames from your " + subject + ".";
+  }
+  if (violation === "Direct messaging requests" || violation === "Direct chat links") {
+    return "Please keep direct contact requests and chat links out of your " + subject + ".";
+  }
+  if (violation === "External website links") {
+    return "Please remove external website links from your " + subject + ".";
+  }
+  return "Please remove direct contact information from your " + subject + ".";
 };
 
 const Profile = () => {
@@ -112,20 +162,19 @@ const Profile = () => {
     if (!user) return;
     setSaving(true);
 
-    // 🛡️ SECURITY: Run content checks to ensure no numbers/emails are in the public bio or name
-    const bioViolation = checkContentViolations(bio);
+    const bioViolation = checkContentViolations(bio, "bio");
     if (bioViolation) {
       toast.error("Profile Update Blocked", {
-        description: `Your bio contains ${bioViolation.toLowerCase()}. Sharing direct contact information is strictly prohibited on this platform.`
+        description: moderationDescription(bioViolation, "bio"),
       });
       setSaving(false);
       return;
     }
 
-    const nameViolation = checkContentViolations(name);
+    const nameViolation = checkContentViolations(name, "name");
     if (nameViolation) {
       toast.error("Profile Update Blocked", {
-        description: `Your name contains ${nameViolation.toLowerCase()}. Please use your real name, not contact info.`
+        description: moderationDescription(nameViolation, "name"),
       });
       setSaving(false);
       return;
