@@ -13,7 +13,11 @@ import { allCategories } from "@/data/mockData";
 import { CATEGORY_LABELS, Creator } from "@/types/creator";
 import { supabase } from "@/integrations/supabase/client";
 
-export type CreatorWithPlan = Creator & { plan?: string };
+export type CreatorWithPlan = Creator & {
+  plan?: string;
+  isPaidBadge?: boolean;
+  completedBookings?: number;
+};
 
 const indiaLocations: Record<string, string[]> = {
   "Andaman and Nicobar Islands": ["Port Blair"],
@@ -70,14 +74,6 @@ const budgetOptions = [
   { label: "Above ₹1,00,000", value: "100000-infinity", min: 50000, max: Infinity },
 ];
 
-// 🌟 Helper function to determine plan priority
-const getPlanWeight = (planName?: string) => {
-  const p = (planName || "free").toLowerCase();
-  if (p.includes("business")) return 3;
-  if (p.includes("pro") || p.includes("premium")) return 2;
-  return 1;
-};
-
 const Search = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -102,34 +98,28 @@ const Search = () => {
 
   const fetchCreators = async () => {
     setLoading(true);
-    
-    // EXACT ORIGINAL SAFE FETCHING METHOD
-    const { data: profiles } = await supabase.from("profiles").select("*").eq("type", "creator");
-    const { data: creatorProfiles } = await supabase.from("creator_profiles").select("*");
-    const { data: reviewsData } = await supabase.from("reviews").select("creator_id, rating");
-    
-    // Safely fetch subscriptions
-    const { data: subscriptionsData } = await supabase.from("subscriptions").select("user_id, plan_name");
 
-    if (!profiles || !creatorProfiles) { 
-      setLoading(false); 
-      return; 
+    const [
+      { data: profiles },
+      { data: creatorProfiles },
+      { data: rankingScores },
+      { data: subscriptionsData },
+    ] = await Promise.all([
+      supabase.from("profiles").select("*").eq("type", "creator"),
+      supabase.from("creator_profiles").select("*"),
+      (supabase.from("creator_ranking_scores" as any) as any).select("*"),
+      supabase.from("subscriptions").select("user_id, plan_name"),
+    ]);
+
+    if (!profiles || !creatorProfiles) {
+      setLoading(false);
+      return;
     }
-
-    const reviewAgg: Record<string, { total: number; count: number }> = {};
-    (reviewsData || []).forEach(r => {
-      if (!reviewAgg[r.creator_id]) reviewAgg[r.creator_id] = { total: 0, count: 0 };
-      reviewAgg[r.creator_id].total += r.rating;
-      reviewAgg[r.creator_id].count++;
-    });
 
     const mapped: CreatorWithPlan[] = profiles.map(p => {
       const cp = creatorProfiles.find(c => c.profile_id === p.id);
-      const rev = reviewAgg[p.id] || { total: 0, count: 0 };
-      
-      // Find plan safely
-      const sub = (subscriptionsData || []).find(s => s.user_id === p.id);
-      const plan = sub?.plan_name || "free";
+      const score = (rankingScores || []).find((item: any) => item.creator_id === p.id);
+      const sub = (subscriptionsData || []).find(item => item.user_id === p.id);
 
       return {
         id: p.id,
@@ -144,21 +134,23 @@ const Search = () => {
         specializations: cp?.specializations || [],
         languages: cp?.languages || [],
         experienceYears: cp?.experience_years || 0,
-        rating: rev.count > 0 ? rev.total / rev.count : 0,
-        reviewCount: rev.count,
+        rating: Number(score?.avg_rating || 0),
+        reviewCount: Number(score?.review_count || 0),
         responseRate: cp?.response_rate || 0,
         avgResponseTime: cp?.avg_response_time || "N/A",
-        rankScore: cp?.rank_score || 0,
+        rankScore: Number(score?.total_score ?? cp?.rank_score ?? 0),
         cityRank: cp?.city_rank || 0,
         isVerified: p.is_verified,
         isOnline: false,
         priceRange: { min: cp?.price_min || 0, max: cp?.price_max || 0, currency: cp?.price_currency || "INR" },
         createdAt: p.created_at,
         updatedAt: p.updated_at,
-        plan: plan // Pass plan here
+        plan: sub?.plan_name || "free",
+        isPaidBadge: Boolean(score?.is_paid_badge),
+        completedBookings: Number(score?.completed_bookings || 0),
       };
     });
-    
+
     setCreators(mapped);
     setLoading(false);
   };
@@ -182,14 +174,13 @@ const Search = () => {
     }
 
     switch (sortBy) {
-      // 🌟 NEW: Top Ranked sorts by Plan (Business -> Pro -> Free) then falls back to RankScore
-      case "rank": 
-        return results.sort((a, b) => {
-          const weightA = getPlanWeight(a.plan);
-          const weightB = getPlanWeight(b.plan);
-          if (weightA !== weightB) return weightB - weightA; // Sort by plan weight first
-          return b.rankScore - a.rankScore; // Then by rank score
-        });
+      case "rank":
+        return results.sort((a, b) => (
+          b.rankScore - a.rankScore
+          || Number(Boolean(b.isPaidBadge)) - Number(Boolean(a.isPaidBadge))
+          || (b.completedBookings || 0) - (a.completedBookings || 0)
+          || b.rating - a.rating
+        ));
       case "rating": return results.sort((a, b) => b.rating - a.rating);
       case "price-low": return results.sort((a, b) => a.priceRange.min - b.priceRange.min);
       case "price-high": return results.sort((a, b) => b.priceRange.max - a.priceRange.max);
