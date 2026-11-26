@@ -53,6 +53,7 @@ const Profile = () => {
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<"creator" | "client">("client");
   const [category, setCategory] = useState<string>("photographer");
   const [subcategory, setSubcategory] = useState<string>("");
@@ -99,6 +100,7 @@ const Profile = () => {
       setPhone(draft.phone ?? profile.phone ?? "");
       setWebsite(draft.website ?? profile.website ?? "");
       setAvatarUrl(draft.avatarUrl ?? profile.avatar_url);
+      setCoverUrl(draft.coverUrl ?? profile.cover_url);
       setAccountType(draft.accountType ?? profile.type ?? "client");
       setCategory(draft.category ?? "photographer");
       setSubcategory(draft.subcategory ?? "");
@@ -113,6 +115,7 @@ const Profile = () => {
       setPhone(profile.phone || "");
       setWebsite(profile.website || "");
       setAvatarUrl(profile.avatar_url);
+      setCoverUrl(profile.cover_url);
       setAccountType(profile.type || "client");
       draftRestoredFor.current = null;
     }
@@ -145,6 +148,7 @@ const Profile = () => {
       phone,
       website,
       avatarUrl,
+      coverUrl,
       accountType,
       category,
       subcategory,
@@ -160,6 +164,7 @@ const Profile = () => {
     phone,
     website,
     avatarUrl,
+    coverUrl,
     accountType,
     category,
     subcategory,
@@ -169,6 +174,20 @@ const Profile = () => {
     setAvatarUrl(url);
     if (user) {
       await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+    }
+  };
+
+  const handleCoverUpload = async (url: string) => {
+    setCoverUrl(url);
+    if (user) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cover_url: url })
+        .eq("id", user.id);
+
+      if (error) {
+        toast.error("Banner image could not be saved");
+      }
     }
   };
 
@@ -228,7 +247,9 @@ const Profile = () => {
 
     // Update profile
     const { error } = await supabase.from("profiles").update({
-      name, bio, city, state, country, phone: normalizedPhone, website, avatar_url: avatarUrl,
+      name, bio, city, state, country, phone: normalizedPhone, website,
+      avatar_url: avatarUrl,
+      cover_url: coverUrl,
       type: accountType,
     }).eq("id", user.id);
 
@@ -272,7 +293,25 @@ const Profile = () => {
             </div>
 
             <Card className="mb-6">
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold">Banner / Cover Image</h3>
+                    <span className="text-xs text-muted-foreground">Shown behind your profile photo</span>
+                  </div>
+                  <ImageUpload
+                    currentUrl={coverUrl}
+                    userId={user?.id || ""}
+                    folder="covers"
+                    onUpload={handleCoverUpload}
+                    variant="cover"
+                    className="h-40 w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Upload a safe image up to 5MB. Hover over the banner and click the camera icon to change it.
+                  </p>
+                </div>
+
                 <div className="flex items-center gap-6">
                   <ImageUpload
                     currentUrl={avatarUrl}
