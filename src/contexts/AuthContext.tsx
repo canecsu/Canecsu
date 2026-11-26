@@ -32,6 +32,32 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+const getFriendlySignupError = (error: any) => {
+  if (!error) return null;
+
+  const message = String(error.message || "").toLowerCase();
+  if (
+    message.includes("already registered") ||
+    message.includes("already exists") ||
+    message.includes("duplicate key") ||
+    message.includes("email") && message.includes("unique")
+  ) {
+    return {
+      ...error,
+      message: "This email is already registered. Please use another email or log in.",
+    };
+  }
+
+  if (message.includes("profiles_phone_unique") || message.includes("phone")) {
+    return {
+      ...error,
+      message: "This mobile number is already registered. Please use another number.",
+    };
+  }
+
+  return error;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -210,15 +236,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profileData: Record<string, unknown> = {},
   ) => {
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       options: {
         data: { ...profileData, name, type, category },
         emailRedirectTo: window.location.origin,
       },
     });
+
+    // Supabase can intentionally return an empty identities array for an
+    // already-registered email when email enumeration protection is enabled.
+    const existingEmail =
+      !error &&
+      !!data.user &&
+      Array.isArray(data.user.identities) &&
+      data.user.identities.length === 0;
+
+    if (existingEmail) {
+      return {
+        error: {
+          code: "user_already_exists",
+          message: "This email is already registered. Please use another email or log in.",
+        },
+        user: null,
+        session: null,
+      };
+    }
+
     return {
-      error,
+      error: getFriendlySignupError(error),
       user: data.user ?? null,
       session: data.session ?? null,
     };
