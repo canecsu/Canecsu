@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { 
@@ -71,6 +71,8 @@ const censorText = (text: string) => {
 
 export default function CreatorProfile() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const projectQueryId = searchParams.get("project");
   const navigate = useNavigate();
   
   const { user, profile: currentUserProfile } = useAuth();
@@ -110,7 +112,7 @@ export default function CreatorProfile() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>({});
 
-  useEffect(() => { if (id) fetchCreator(id); }, [id]);
+  useEffect(() => { if (id) fetchCreator(id); }, [id, projectQueryId]);
   useEffect(() => { if (user && id) checkShortlist(); }, [user, id]);
 
   useEffect(() => {
@@ -277,7 +279,12 @@ export default function CreatorProfile() {
     setCreatorProfile(cpRes.data);
     setServices(svcRes.data || []);
     setReviews(revRes.data || []);
-    setProjects(projRes.data || []);
+    const loadedProjects = projRes.data || [];
+    setProjects(loadedProjects);
+    if (projectQueryId) {
+      const projectToOpen = loadedProjects.find((project: any) => project.id === projectQueryId);
+      if (projectToOpen) setViewingRichProject(projectToOpen);
+    }
     setCreatorPlan(subRes.data?.plan_name?.toLowerCase() || "free"); 
     setLoading(false);
   };
