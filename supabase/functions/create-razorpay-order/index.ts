@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,24 @@ serve(async (req) => {
 
   try {
     const { amount, planName, userId } = await req.json();
+
+    // Paid creator verification orders are fixed-price and tied to the signed-in user.
+    if (planName === "Creator Verification") {
+      if (Number(amount) !== 99 || !userId) {
+        throw new Error("Creator Verification must be exactly ₹99.");
+      }
+      const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (!accessToken || !supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Authentication is required for creator verification.");
+      }
+      const authClient = createClient(supabaseUrl, supabaseAnonKey);
+      const { data: { user }, error: authError } = await authClient.auth.getUser(accessToken);
+      if (authError || !user || user.id !== userId) {
+        throw new Error("You can only purchase verification for your own account.");
+      }
+    }
 
     const key_id = Deno.env.get("RAZORPAY_KEY_ID");
     const key_secret = Deno.env.get("RAZORPAY_KEY_SECRET");
@@ -29,10 +48,10 @@ serve(async (req) => {
         "Authorization": `Basic ${auth}`,
       },
       body: JSON.stringify({
-        amount: amount * 100, // paise
+        amount: Number(amount) * 100, // paise
         currency: "INR",
         receipt: `receipt_${userId}_${Date.now()}`,
-        notes: { plan_name: planName, user_id: userId },
+        notes: { plan_name: planName || "booking_payment", user_id: userId },
       }),
     });
 
