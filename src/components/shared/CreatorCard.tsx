@@ -37,6 +37,7 @@ export function CreatorCard({
 
   // Plan extract kiya
   const creatorPlan = (creator as any).plan || "free";
+  const paidVerificationActive = Boolean((creator as any).isPaidBadge);
 
   if (variant === "compact") {
     return (
@@ -70,6 +71,7 @@ export function CreatorCard({
             {/* 🟡 🔵 NEW BADGES */}
             {creatorPlan === 'business' && <span title="Business Verified"><BadgeCheck className="w-4 h-4 text-white fill-yellow-500 shrink-0" /></span>}
             {creatorPlan === 'pro' && <span title="Premium Verified"><BadgeCheck className="w-4 h-4 text-white fill-blue-500 shrink-0" /></span>}
+            {paidVerificationActive && <span title="Canecsu Creator Verification"><BadgeCheck className="w-4 h-4 text-white fill-amber-500 shrink-0" /></span>}
             
             <AvailabilityIndicator isOnline={creator.isOnline} size="sm" />
           </div>
@@ -154,6 +156,7 @@ export function CreatorCard({
                   {/* 🟡 🔵 NEW BADGES */}
                   {creatorPlan === 'business' && <span title="Business Verified"><BadgeCheck className="w-5 h-5 text-white fill-yellow-500 shrink-0" /></span>}
                   {creatorPlan === 'pro' && <span title="Premium Verified"><BadgeCheck className="w-5 h-5 text-white fill-blue-500 shrink-0" /></span>}
+                    {paidVerificationActive && <span title="Canecsu Creator Verification"><BadgeCheck className="w-5 h-5 text-white fill-amber-500 shrink-0" /></span>}
                 </div>
                 
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -264,6 +267,7 @@ export function CreatorCard({
               {/* 🟡 🔵 NEW BADGES */}
               {creatorPlan === 'business' && <span title="Business Verified"><BadgeCheck className="w-5 h-5 text-white fill-yellow-500 shrink-0 drop-shadow-md" /></span>}
               {creatorPlan === 'pro' && <span title="Premium Verified"><BadgeCheck className="w-5 h-5 text-white fill-blue-500 shrink-0 drop-shadow-md" /></span>}
+              {paidVerificationActive && <span title="Canecsu Creator Verification"><BadgeCheck className="w-5 h-5 text-white fill-amber-500 shrink-0 drop-shadow-md" /></span>}
               
               {creator.isVerified && creatorPlan === "free" && <VerifiedBadge size="sm" />}
             </div>
