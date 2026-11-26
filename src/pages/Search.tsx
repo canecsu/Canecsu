@@ -146,7 +146,11 @@ const Search = () => {
         createdAt: p.created_at,
         updatedAt: p.updated_at,
         plan: sub?.plan_name || "free",
-        isPaidBadge: Boolean(score?.is_paid_badge),
+        isPaidBadge: Boolean(
+          score?.is_paid_badge
+          && score?.badge_expires_at
+          && new Date(score.badge_expires_at).getTime() > Date.now()
+        ),
         completedBookings: Number(score?.completed_bookings || 0),
       };
     });
