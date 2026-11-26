@@ -20,7 +20,14 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
-  signUp: (email: string, password: string, name: string, type: "creator" | "client", category?: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    type: "creator" | "client",
+    category?: string,
+    profileData?: Record<string, unknown>,
+  ) => Promise<{ error: any; user: User | null; session: Session | null }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -165,16 +172,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, name: string, type: "creator" | "client", category?: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (
+    email: string,
+    password: string,
+    name: string,
+    type: "creator" | "client",
+    category?: string,
+    profileData: Record<string, unknown> = {},
+  ) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name, type, category },
+        data: { ...profileData, name, type, category },
         emailRedirectTo: window.location.origin,
       },
     });
-    return { error };
+    return {
+      error,
+      user: data.user ?? null,
+      session: data.session ?? null,
+    };
   };
 
   const signIn = async (email: string, password: string) => {

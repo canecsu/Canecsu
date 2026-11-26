@@ -23,7 +23,10 @@ const Login = () => {
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      const message = error.message?.toLowerCase().includes("email not confirmed")
+        ? "Please verify your email first, then log in."
+        : error.message;
+      toast.error(message);
     } else {
       toast.success("Welcome back!");
       // Fetch profile to determine type and redirect accordingly

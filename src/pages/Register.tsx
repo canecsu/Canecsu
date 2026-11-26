@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 const creatorCategories = [
   { value: "photographer", label: "Photographer" },
@@ -82,23 +81,25 @@ const Register = () => {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(email, password, name, accountType, creatorType || undefined);
-    if (error) {
-      setLoading(false);
-      toast.error(error.message);
-      return;
-    }
-    // Update phone + consent + age data in profile after signup
-    const { data: { user: newUser } } = await supabase.auth.getUser();
-    if (newUser) {
-      await supabase.from("profiles").update({
+    const { error } = await signUp(
+      email,
+      password,
+      name,
+      accountType,
+      creatorType || undefined,
+      {
         phone,
         dob,
         is_minor: isMinor,
         guardian_email: isMinor ? guardianEmail : null,
         marketing_opt_in: isMinor ? false : marketingOptIn,
         consent_at: new Date().toISOString(),
-      } as any).eq("id", newUser.id);
+      },
+    );
+    if (error) {
+      setLoading(false);
+      toast.error(error.message);
+      return;
     }
     setLoading(false);
     toast.success("Account created! Please check your email to verify your account.");
