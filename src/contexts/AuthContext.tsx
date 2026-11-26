@@ -41,6 +41,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const completePendingReferral = async () => {
+    const pendingCode = localStorage.getItem("canecsu_pending_referral");
+    if (!pendingCode) return;
+
+    const { error } = await supabase.rpc("complete_referral", {
+      p_referral_code: pendingCode,
+    });
+
+    if (!error) {
+      localStorage.removeItem("canecsu_pending_referral");
+      return;
+    }
+
+    const message = error.message?.toLowerCase() || "";
+    if (
+      message.includes("invalid referral") ||
+      message.includes("already been used") ||
+      message.includes("already used a referral") ||
+      message.includes("own referral")
+    ) {
+      localStorage.removeItem("canecsu_pending_referral");
+    }
+
+    console.error("Referral reward could not be applied:", error);
+  };
+
   useEffect(() => {
     let mounted = true; // Prevents memory leaks if component unmounts
 
@@ -113,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem("canecsu_signup_category");
           }
         }
+
+        await completePendingReferral();
 
         if (mounted) setProfile(profileData as UserProfile);
 
