@@ -69,9 +69,9 @@ const checkContentViolations = (text: string, field: ModerationField = "bio") =>
     // platform + id/handle/username/profile label is present.
     const hasSocialHandle = /(?:^|[\s([{])@[a-z0-9][a-z0-9_.-]{1,30}\b/i.test(normalized);
     const hasSocialPlatform = /\b(?:instagram|insta|ig|facebook|fb|twitter|discord|telegram|snapchat|whatsapp|youtube|linkedin)\b/i.test(normalized);
-    const hasSocialIdLabel = /\b(?:id|handle|username|profile|account)\b/i.test(normalized);
+    const hasLabeledSocialId = /\b(?:id|handle|username|profile|account)\s*(?:is|:|=)\s*@?[a-z0-9][a-z0-9_.-]{1,30}\b/i.test(normalized);
 
-    if (hasSocialHandle || (hasSocialPlatform && hasSocialIdLabel)) {
+    if (hasSocialHandle || (hasSocialPlatform && hasLabeledSocialId)) {
       return "Social media usernames";
     }
 
