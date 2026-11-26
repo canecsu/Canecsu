@@ -133,8 +133,11 @@ export default function CreatorProfile() {
     } else {
       setProjectComments([]);
       setProjectLikesCount(0);
+      setProjectSharesCount(0);
       setIsProjectLiked(false);
       setProjectViews(0);
+      setEditingCommentId(null);
+      setEditingCommentText("");
     }
   }, [viewingRichProject]);
 
