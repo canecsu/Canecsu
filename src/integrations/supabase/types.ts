@@ -1315,6 +1315,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      complete_referral: {
+        Args: {
+          p_referral_code: string
+        }
+        Returns: {
+          success: boolean
+          result_status: string
+          reward_days: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
