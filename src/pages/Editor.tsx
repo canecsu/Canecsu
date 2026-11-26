@@ -69,70 +69,93 @@ export default function Editor() {
     e.target.style.height = (e.target.scrollHeight) + 'px';
   };
 
-  // Helper to upload a single file to Supabase
+  // Helper to upload a single file to Supabase.
   const uploadFile = async (file) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const fileExt = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
     const filePath = `${user.id}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('project_media')
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        contentType: file.type || undefined,
+        upsert: false,
+      });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      throw new Error(`Media upload failed: ${uploadError.message}`);
+    }
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data } = supabase.storage
       .from('project_media')
       .getPublicUrl(filePath);
 
-    return publicUrl;
-  };
+    if (!data.publicUrl) {
+      throw new Error('Media URL could not be created.');
+    }
 
-  // Save everything to Supabase
+    return { filePath, publicUrl: data.publicUrl };
+  };
+  // Save everything to Supabase.
   const handlePublish = async () => {
-    if (!user) return toast.error("You must be logged in to publish.");
-    if (contentBlocks.length === 0) return toast.error("Add some content before publishing!");
-    if (!projectTitle.trim()) return toast.error("Please give your project a title.");
+    if (!user) return toast.error('You must be logged in to publish.');
+    if (contentBlocks.length === 0) return toast.error('Add some content before publishing!');
+    if (!projectTitle.trim()) return toast.error('Please give your project a title.');
 
     setIsPublishing(true);
-    toast.loading("Uploading media and publishing...", { id: "publish" });
+    toast.loading('Uploading media and publishing...', { id: 'publish' });
+    const uploadedPaths = [];
 
     try {
       const processedBlocks = await Promise.all(contentBlocks.map(async (block) => {
-        // Handle Single Image or Video
         if ((block.type === 'image' || block.type === 'video') && block.file) {
-          const publicUrl = await uploadFile(block.file);
+          const { filePath, publicUrl } = await uploadFile(block.file);
+          uploadedPaths.push(filePath);
           return { id: block.id, type: block.type, content: publicUrl };
         }
-        // Handle Multi-Image Grid
+
         if (block.type === 'grid' && block.files) {
-          const publicUrls = await Promise.all(block.files.map(file => uploadFile(file)));
-          return { id: block.id, type: block.type, content: publicUrls };
+          const uploadedGrid = await Promise.all(block.files.map(async (file) => {
+            const { filePath, publicUrl } = await uploadFile(file);
+            uploadedPaths.push(filePath);
+            return publicUrl;
+          }));
+          return { id: block.id, type: block.type, content: uploadedGrid };
         }
-        // Return text/embeds as-is
-        return block; 
+
+        return block;
       }));
 
-      const { error: dbError } = await (supabase.from('projects' as any).insert({
+      const { error: dbError } = await supabase.from('projects' as any).insert({
         creator_id: user.id,
-        title: projectTitle,
+        title: projectTitle.trim(),
         content_blocks: processedBlocks,
-        published: true 
-      } as any) as any);
+        published: true
+      } as any);
 
       if (dbError) throw dbError;
 
-      toast.success("Project published successfully!", { id: "publish" });
-      navigate('/'); 
-
+      toast.success('Project published successfully!', { id: 'publish' });
+      navigate('/');
     } catch (error) {
-      console.error("Publish error:", error);
-      toast.error("Failed to publish project.", { id: "publish" });
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('project_media').remove(uploadedPaths);
+      }
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown publish error';
+      console.error('Publish error:', error);
+      const isPermissionError = /permission|row-level security|not authorized/i.test(errorMessage);
+      toast.error(
+        isPermissionError
+          ? 'Upload permission denied. Please log in again and retry.'
+          : `Failed to publish project: ${errorMessage}`,
+        { id: 'publish' }
+      );
     } finally {
       setIsPublishing(false);
     }
   };
-
   const ToolButton = ({ icon: Icon, label, onClick }) => (
     <div className="flex flex-col items-center gap-3 cursor-pointer group" onClick={onClick}>
       <div className="w-20 h-20 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 group-hover:border-blue-500 group-hover:text-blue-600 group-hover:shadow-md transition-all">
