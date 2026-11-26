@@ -15,11 +15,14 @@ import { Header } from "@/components/layout/Header";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { VerifiedBadge } from "@/components/shared/VerifiedBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import { CATEGORY_LABELS } from "@/types/creator";
 import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
@@ -100,6 +103,17 @@ const cityCoords: Record<string, [number, number]> = {
   "visakhapatnam": [17.686, 83.218], "thiruvananthapuram": [8.524, 76.936],
   "coimbatore": [11.016, 76.955], "madurai": [9.925, 78.119], "ranchi": [23.344, 85.309],
   "guwahati": [26.144, 91.736], "bhubaneswar": [20.296, 85.824],
+};
+
+const distanceKm = (from: [number, number], to: [number, number]) => {
+  const earthRadiusKm = 6371;
+  const lat1 = from[0] * Math.PI / 180;
+  const lat2 = to[0] * Math.PI / 180;
+  const deltaLat = (to[0] - from[0]) * Math.PI / 180;
+  const deltaLng = (to[1] - from[1]) * Math.PI / 180;
+  const haversine = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.asin(Math.sqrt(Math.min(1, haversine)));
 };
 
 const categories = Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>;
@@ -336,6 +350,7 @@ function TiltPanel({ children, className = "" }: { children: React.ReactNode; cl
 
 export default function ExploreMap() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [creators, setCreators] = useState<any[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -347,6 +362,13 @@ export default function ExploreMap() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedBudget, setSelectedBudget] = useState("any");
   const [minRating, setMinRating] = useState(0);
+  const [searchLocationQuery, setSearchLocationQuery] = useState("");
+  const [searchLocationLabel, setSearchLocationLabel] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
+  const [searchCoords, setSearchCoords] = useState<[number, number] | null>(null);
+  const [searchRadiusKm, setSearchRadiusKm] = useState(25);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [liveSearchSubmitting, setLiveSearchSubmitting] = useState(false);
 
   const availableCities = selectedState ? indiaLocations[selectedState] : [];
   const activeMapStyle = mapStyles.find(s => s.id === mapStyleId)!;
@@ -380,58 +402,247 @@ export default function ExploreMap() {
   }, []);
 
   useEffect(() => {
-    const fetchCreators = async () => {
+    const query = searchLocationQuery.trim();
+    if (query.length < 3 || (searchCoords && searchLocationLabel === query)) {
+      setSearchSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
       try {
-        const { data: profiles, error: profileError } = await supabase.from("profiles").select("*, creator_profiles(*)").eq("type", "creator");
-        const { data: reviews } = await supabase.from("reviews").select("creator_id, rating");
-        
-        if (profileError) throw profileError;
-
-        const reviewAgg: Record<string, { total: number; count: number }> = {};
-        (reviews || []).forEach(r => {
-          if (!reviewAgg[r.creator_id]) reviewAgg[r.creator_id] = { total: 0, count: 0 };
-          reviewAgg[r.creator_id].total += r.rating;
-          reviewAgg[r.creator_id].count++;
-        });
-
-        const mapped = (profiles || []).map((p) => {
-          const cp = p.creator_profiles?.[0];
-          const rev = reviewAgg[p.id] || { total: 0, count: 0 };
-          const cityKey = (p.city || "patna").toLowerCase();
-          
-          const baseCoords = cityCoords[cityKey] || [25.605, 85.135];
-          const lat = baseCoords[0] + (Math.random() - 0.5) * 0.04;
-          const lng = baseCoords[1] + (Math.random() - 0.5) * 0.04;
-          
-          return {
-            id: p.id, name: p.name, 
-            city: p.city || "Unknown", state: p.state || "Unknown",
-            avatarUrl: p.avatar_url || "/296fe121-5dfa-43f4-98b5-db50019738a7.jpg",
-            bio: p.bio, category: cp?.category || "photographer",
-            isVerified: p.is_verified,
-            rating: rev.count > 0 ? +(rev.total / rev.count).toFixed(1) : 0,
-            reviewCount: rev.count,
-            priceMin: cp?.price_min || 0,
-            priceMax: cp?.price_max || 0,
-            isAvailableNow: cp?.is_available_now || false,
-            isSponsored: false,
-            subscriptionTier: "free",
-            lat, lng,
-          };
-        });
-        setCreators(mapped);
-      } catch (err) {
-        console.error("Error fetching map data:", err);
-      } finally {
-        setLoading(false);
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=in&limit=5&q=${encodeURIComponent(query)}`,
+          { signal: controller.signal, headers: { Accept: "application/json" } },
+        );
+        if (!response.ok) return;
+        const results = await response.json();
+        setSearchSuggestions(Array.isArray(results) ? results : []);
+      } catch (error: any) {
+        if (error?.name !== "AbortError") console.warn("Location search failed", error);
       }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
     };
+  }, [searchLocationQuery, searchLocationLabel, searchCoords]);
+
+  const selectSearchLocation = (suggestion: any) => {
+    const address = suggestion.address || {};
+    const selectedLabel = suggestion.display_name || "Selected location";
+    setSearchLocationQuery(selectedLabel);
+    setSearchLocationLabel(selectedLabel);
+    setSearchCoords([Number(suggestion.lat), Number(suggestion.lon)]);
+    setSearchSuggestions([]);
+    if (address.state && indiaLocations[address.state]) {
+      setSelectedState(address.state);
+      setSelectedCity(address.city || address.town || address.village || "");
+    }
+  };
+
+  const requestCurrentLocation = () => new Promise<[number, number] | null>((resolve) => {
+    if (!navigator.geolocation) {
+      toast.error("Location access is not available in this browser");
+      resolve(null);
+      return;
+    }
+
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const nextCoords: [number, number] = [coords.latitude, coords.longitude];
+        setSearchCoords(nextCoords);
+        setSearchLocationQuery("Your current location");
+        setSearchLocationLabel("Your current location");
+        setSearchSuggestions([]);
+        setLocationLoading(false);
+        resolve(nextCoords);
+      },
+      (error) => {
+        setLocationLoading(false);
+        toast.error("Location permission is required", {
+          description: error.message || "Allow location access to search nearby creators.",
+        });
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  });
+
+  useEffect(() => {
+    const fetchCreators = async () => {
+    try {
+      const [
+        { data: profiles, error: profileError },
+        { data: reviews },
+        { data: serviceAreas },
+        { data: liveLocations },
+      ] = await Promise.all([
+        supabase.from("profiles").select("*, creator_profiles(*)").eq("type", "creator"),
+        supabase.from("reviews").select("creator_id, rating"),
+        (supabase.from("creator_service_areas" as any) as any).select("*").eq("is_active", true),
+        (supabase.from("creator_live_locations" as any) as any)
+          .select("*")
+          .eq("is_active", true)
+          .gt("expires_at", new Date().toISOString()),
+      ]);
+
+      if (profileError) throw profileError;
+
+      const reviewAgg: Record<string, { total: number; count: number }> = {};
+      (reviews || []).forEach(r => {
+        if (!reviewAgg[r.creator_id]) reviewAgg[r.creator_id] = { total: 0, count: 0 };
+        reviewAgg[r.creator_id].total += r.rating;
+        reviewAgg[r.creator_id].count++;
+      });
+
+      const areasByCreator: Record<string, any[]> = {};
+      (serviceAreas || []).forEach((area: any) => {
+        if (!areasByCreator[area.creator_id]) areasByCreator[area.creator_id] = [];
+        areasByCreator[area.creator_id].push(area);
+      });
+
+      const liveByCreator: Record<string, any> = {};
+      (liveLocations || []).forEach((location: any) => {
+        liveByCreator[location.creator_id] = location;
+      });
+
+      const now = Date.now();
+      const mapped = (profiles || []).map((p) => {
+        const cp = p.creator_profiles?.[0];
+        const rev = reviewAgg[p.id] || { total: 0, count: 0 };
+        const cityKey = (p.city || "patna").toLowerCase();
+        const profileLat = Number(p.lat);
+        const profileLng = Number(p.lng);
+        const fallbackCoords = Number.isFinite(profileLat) && Number.isFinite(profileLng)
+          ? [profileLat, profileLng]
+          : (cityCoords[cityKey] || [25.605, 85.135]);
+        const liveLocation = liveByCreator[p.id];
+        const hasActiveLiveLocation = Boolean(
+          liveLocation &&
+          liveLocation.is_active &&
+          liveLocation.expires_at &&
+          new Date(liveLocation.expires_at).getTime() > now,
+        );
+        const baseCoords = hasActiveLiveLocation
+          ? [Number(liveLocation.latitude), Number(liveLocation.longitude)]
+          : fallbackCoords;
+        const lat = hasActiveLiveLocation ? baseCoords[0] : baseCoords[0] + (Math.random() - 0.5) * 0.04;
+        const lng = hasActiveLiveLocation ? baseCoords[1] : baseCoords[1] + (Math.random() - 0.5) * 0.04;
+
+        return {
+          id: p.id,
+          name: p.name,
+          city: p.city || "Unknown",
+          state: p.state || "Unknown",
+          avatarUrl: p.avatar_url || "/296fe121-5dfa-43f4-98b5-db50019738a7.jpg",
+          bio: p.bio,
+          category: cp?.category || "photographer",
+          isVerified: p.is_verified,
+          rating: rev.count > 0 ? +(rev.total / rev.count).toFixed(1) : 0,
+          reviewCount: rev.count,
+          priceMin: cp?.price_min || 0,
+          priceMax: cp?.price_max || 0,
+          isAvailableNow: Boolean(cp?.is_available_now && hasActiveLiveLocation),
+          isSponsored: false,
+          subscriptionTier: "free",
+          lat,
+          lng,
+          serviceAreas: areasByCreator[p.id] || [],
+          liveLocation: hasActiveLiveLocation ? liveLocation : null,
+        };
+      });
+      setCreators(mapped);
+    } catch (err) {
+      console.error("Error fetching map data:", err);
+    } finally {
+      setLoading(false);
+    }
+    };
+
     fetchCreators();
   }, []);
 
+  const handleLiveNowToggle = async (checked: boolean) => {
+    if (!checked) {
+      setLiveOnly(false);
+      return;
+    }
+
+    if (!user) {
+      toast.error("Please log in first", { description: "Live search needs an account so matching creators can respond." });
+      navigate("/login");
+      return;
+    }
+
+    if (!selectedCategory || selectedCategory === "all") {
+      toast.error("Choose a creator category first", {
+        description: "Select Photographer, Videographer, or another category before using Live Now.",
+      });
+      return;
+    }
+
+    let coords = searchCoords;
+    if (!coords) {
+      coords = await requestCurrentLocation();
+      if (!coords) return;
+    }
+
+    const locationLabel = searchLocationLabel || searchLocationQuery.trim() || "Your current location";
+    setLiveSearchSubmitting(true);
+    const { error } = await (supabase.from("live_search_requests" as any) as any)
+      .insert({
+        client_id: user.id,
+        category: selectedCategory,
+        location_label: locationLabel,
+        latitude: coords[0],
+        longitude: coords[1],
+        radius_km: searchRadiusKm,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      const rateLimited = error.code === "42501" || /10 minutes|policy|recent/i.test(error.message || "");
+      toast.error(
+        rateLimited ? "Live search already used recently" : "Live search could not be started",
+        { description: rateLimited ? "Please wait 10 minutes before sending another alert." : error.message },
+      );
+      setLiveSearchSubmitting(false);
+      return;
+    }
+
+    setLiveOnly(true);
+    setLiveSearchSubmitting(false);
+    toast.success("Live search started", {
+      description: "Matching creators nearby have been notified.",
+    });
+  };
+
   const filtered = useMemo(() => {
     let results = [...creators];
-    if (liveOnly) results = results.filter(c => c.isAvailableNow);
+
+    if (searchCoords) {
+      results = results.filter((creator) => {
+        const servesArea = creator.serviceAreas?.some((area: any) =>
+          distanceKm(searchCoords, [Number(area.latitude), Number(area.longitude)]) <= Number(area.radius_km),
+        );
+        const liveNearby = creator.isAvailableNow && creator.liveLocation &&
+          distanceKm(searchCoords, [Number(creator.liveLocation.latitude), Number(creator.liveLocation.longitude)]) <= searchRadiusKm;
+        return servesArea || liveNearby;
+      });
+    }
+
+    if (liveOnly) {
+      results = results.filter((creator) => {
+        if (!creator.isAvailableNow) return false;
+        if (!searchCoords) return true;
+        return creator.liveLocation &&
+          distanceKm(searchCoords, [Number(creator.liveLocation.latitude), Number(creator.liveLocation.longitude)]) <= searchRadiusKm;
+      });
+    }
     if (selectedState && selectedState !== "all") results = results.filter(c => c.state?.toLowerCase() === selectedState.toLowerCase());
     if (selectedCity && selectedCity !== "all") results = results.filter(c => c.city?.toLowerCase() === selectedCity.toLowerCase());
     if (selectedCategory && selectedCategory !== "all") results = results.filter(c => c.category === selectedCategory);
@@ -442,7 +653,7 @@ export default function ExploreMap() {
     }
     results.sort((a, b) => (b.isSponsored ? 1 : 0) - (a.isSponsored ? 1 : 0));
     return results;
-  }, [creators, liveOnly, selectedState, selectedCity, selectedCategory, selectedBudget, minRating]);
+  }, [creators, liveOnly, searchCoords, searchRadiusKm, selectedState, selectedCity, selectedCategory, selectedBudget, minRating]);
 
   const active = filtered.find(c => c.id === activeId);
 
@@ -473,25 +684,79 @@ export default function ExploreMap() {
   };
 
   const activeFiltersCount = [
-    liveOnly, selectedState && selectedState !== "all",
+    liveOnly, Boolean(searchCoords), selectedState && selectedState !== "all",
     selectedCity && selectedCity !== "all",
     selectedCategory && selectedCategory !== "all", 
     minRating > 0, selectedBudget !== "any"
   ].filter(Boolean).length;
 
   const clearFilters = () => {
-    setLiveOnly(false); setSelectedState(""); setSelectedCity("");
-    setSelectedCategory(""); setSelectedBudget("any"); setMinRating(0);
+    setLiveOnly(false);
+    setSearchLocationQuery("");
+    setSearchLocationLabel("");
+    setSearchSuggestions([]);
+    setSearchCoords(null);
+    setSearchRadiusKm(25);
+    setSelectedState("");
+    setSelectedCity("");
+    setSelectedCategory("");
+    setSelectedBudget("any");
+    setMinRating(0);
   };
 
   const filterPanelContent = (
     <div className="space-y-5">
+      <div>
+        <label className="text-sm font-medium mb-2 block">Search service location</label>
+        <div className="relative">
+          <Input
+            value={searchLocationQuery}
+            onChange={(event) => {
+              setSearchLocationQuery(event.target.value);
+              setSearchLocationLabel("");
+              setSearchCoords(null);
+            }}
+            placeholder="Type a city or location..."
+            className="bg-background"
+          />
+          {searchSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-12 z-[110] overflow-hidden rounded-xl border bg-card shadow-xl">
+              {searchSuggestions.map((suggestion, index) => (
+                <button
+                  type="button"
+                  key={suggestion.place_id || `${suggestion.display_name}-${index}`}
+                  onClick={() => selectSearchLocation(suggestion)}
+                  className="flex w-full items-start gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span className="line-clamp-2">{suggestion.display_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={requestCurrentLocation} disabled={locationLoading}>
+            <Navigation className="h-4 w-4 mr-1" />
+            {locationLoading ? "Locating..." : "Use my location"}
+          </Button>
+          <Select value={String(searchRadiusKm)} onValueChange={(value) => setSearchRadiusKm(Number(value))}>
+            <SelectTrigger className="h-9 flex-1 bg-background"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-card z-[110]">
+              {[5, 10, 25, 50, 100].map((radius) => (
+                <SelectItem key={radius} value={String(radius)}>{radius} km radius</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Search matches creators who selected this area. Live Now also checks their consented current location.</p>
+      </div>
       <div className="flex items-center justify-between p-3 bg-secondary/10 rounded-xl border border-secondary/20">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-secondary" />
           <span className="font-medium text-sm">Available Now</span>
         </div>
-        <Switch checked={liveOnly} onCheckedChange={setLiveOnly} />
+        <Switch checked={liveOnly} onCheckedChange={handleLiveNowToggle} disabled={liveSearchSubmitting} />
       </div>
       <div>
         <label className="text-sm font-medium mb-2 block">State</label>
@@ -624,7 +889,7 @@ export default function ExploreMap() {
 
           <Button
             variant={liveOnly ? "default" : "outline"}
-            onClick={() => setLiveOnly(!liveOnly)}
+            onClick={() => handleLiveNowToggle(!liveOnly)}
             className={`shrink-0 rounded-xl transition-all ${liveOnly ? "bg-secondary hover:bg-secondary/90 text-secondary-foreground shadow-md" : "bg-card"}`}
           >
             <Zap className={`h-4 w-4 mr-2 ${liveOnly ? "" : "text-secondary"}`} />
@@ -648,7 +913,8 @@ export default function ExploreMap() {
         {/* Active Filter Chips */}
         {activeFiltersCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4 shrink-0">
-            {liveOnly && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => setLiveOnly(false)}>🟢 Available Now <X className="h-3 w-3 ml-1" /></Badge>}
+            {liveOnly && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => handleLiveNowToggle(false)}>🟢 Available Now <X className="h-3 w-3 ml-1" /></Badge>}
+            {searchCoords && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => { setSearchCoords(null); setSearchLocationLabel(""); setSearchLocationQuery(""); }}>{searchLocationLabel || "Location"} <X className="h-3 w-3 ml-1" /></Badge>}
             {selectedState && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => { setSelectedState(""); setSelectedCity(""); }}>{selectedState} <X className="h-3 w-3 ml-1" /></Badge>}
             {selectedCity && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => setSelectedCity("")}>{selectedCity} <X className="h-3 w-3 ml-1" /></Badge>}
             {selectedCategory && <Badge variant="secondary" className="gap-1 py-1 px-3 cursor-pointer hover:bg-secondary/80 rounded-xl" onClick={() => setSelectedCategory("")}>{CATEGORY_LABELS[selectedCategory as keyof typeof CATEGORY_LABELS]} <X className="h-3 w-3 ml-1" /></Badge>}
@@ -683,6 +949,7 @@ export default function ExploreMap() {
                   />
                   <ZoomControl position="bottomright" />
                   {active && <ChangeView center={[active.lat, active.lng]} zoom={13} />}
+                  {!active && searchCoords && <ChangeView center={searchCoords} zoom={11} />}
                   {filtered.map((c, i) => (
                     <Marker
                       key={c.id}
