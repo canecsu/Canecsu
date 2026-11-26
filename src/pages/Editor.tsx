@@ -345,7 +345,7 @@ export default function Editor() {
     label,
     onClick,
   }: {
-    icon: React.ComponentType<{ size?: number }>;
+    icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
     label: string;
     onClick: () => void;
   }) => (
