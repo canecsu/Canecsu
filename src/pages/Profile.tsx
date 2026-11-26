@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, Mail, MapPin, Save, Edit, Camera, Briefcase } from "lucide-react";
+import { User, Mail, MapPin, Save, Edit, Camera, Briefcase, Plus, Trash2, Search, Zap, Loader2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,14 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const profileHydratedFor = useRef<string | null>(null);
   const draftRestoredFor = useRef<string | null>(null);
+  const [serviceAreas, setServiceAreas] = useState<any[]>([]);
+  const [areaQuery, setAreaQuery] = useState("");
+  const [areaSuggestions, setAreaSuggestions] = useState<any[]>([]);
+  const [selectedArea, setSelectedArea] = useState<any | null>(null);
+  const [areaRadius, setAreaRadius] = useState("25");
+  const [areaSaving, setAreaSaving] = useState(false);
+  const [liveNow, setLiveNow] = useState(false);
+  const [liveLocationLoading, setLiveLocationLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -133,6 +141,210 @@ const Profile = () => {
       });
     }
   }, [user, profile?.type]);
+
+  // Load creator service areas and consented live status.
+  useEffect(() => {
+    if (!user || profile?.type !== "creator") {
+      setServiceAreas([]);
+      setLiveNow(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadCreatorLocationSettings = async () => {
+      const [areasResult, liveResult] = await Promise.all([
+        (supabase.from("creator_service_areas" as any) as any)
+          .select("*")
+          .eq("creator_id", user.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: true }),
+        (supabase.from("creator_live_locations" as any) as any)
+          .select("creator_id, expires_at, is_active")
+          .eq("creator_id", user.id)
+          .maybeSingle(),
+      ]);
+
+      if (cancelled) return;
+      if (!areasResult.error) setServiceAreas(areasResult.data || []);
+      const live = liveResult.data;
+      setLiveNow(Boolean(live?.is_active && live?.expires_at && new Date(live.expires_at).getTime() > Date.now()));
+    };
+
+    loadCreatorLocationSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile?.type]);
+
+  // Search Indian cities/locations without requiring a Google Maps API key.
+  useEffect(() => {
+    const query = areaQuery.trim();
+    if (query.length < 3 || selectedArea?.label === query) {
+      setAreaSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=in&limit=5&q=${encodeURIComponent(query)}`,
+          { signal: controller.signal, headers: { Accept: "application/json" } },
+        );
+        if (!response.ok) return;
+        const results = await response.json();
+        setAreaSuggestions(Array.isArray(results) ? results : []);
+      } catch (error: any) {
+        if (error?.name !== "AbortError") console.warn("Location search failed", error);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [areaQuery, selectedArea]);
+
+  const selectServiceAreaSuggestion = (suggestion: any) => {
+    const address = suggestion.address || {};
+    const cityName = address.city || address.town || address.village || address.municipality || address.county || "";
+    setSelectedArea({
+      label: suggestion.display_name,
+      city: cityName,
+      state: address.state || "",
+      latitude: Number(suggestion.lat),
+      longitude: Number(suggestion.lon),
+    });
+    setAreaQuery(suggestion.display_name);
+    setAreaSuggestions([]);
+  };
+
+  const addServiceArea = async () => {
+    if (!user || !selectedArea) {
+      toast.error("Select a city or location first", {
+        description: "Search and choose a location from the suggestions.",
+      });
+      return;
+    }
+
+    setAreaSaving(true);
+    const { data, error } = await (supabase.from("creator_service_areas" as any) as any)
+      .insert({
+        creator_id: user.id,
+        label: selectedArea.label,
+        area_type: "radius",
+        city: selectedArea.city || null,
+        state: selectedArea.state || null,
+        latitude: selectedArea.latitude,
+        longitude: selectedArea.longitude,
+        radius_km: Number(areaRadius),
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      toast.error("Service area could not be added", { description: error.message });
+    } else {
+      setServiceAreas((current) => [...current, data]);
+      setAreaQuery("");
+      setSelectedArea(null);
+      toast.success("Service area added");
+    }
+    setAreaSaving(false);
+  };
+
+  const removeServiceArea = async (areaId: string) => {
+    if (!user) return;
+    const { error } = await (supabase.from("creator_service_areas" as any) as any)
+      .delete()
+      .eq("id", areaId)
+      .eq("creator_id", user.id);
+
+    if (error) {
+      toast.error("Service area could not be removed", { description: error.message });
+      return;
+    }
+    setServiceAreas((current) => current.filter((area) => area.id !== areaId));
+    if (liveNow && serviceAreas.length <= 1) {
+      await toggleLiveLocation(false);
+    }
+  };
+
+  const toggleLiveLocation = async (enabled: boolean) => {
+    if (!user) return;
+
+    if (!enabled) {
+      setLiveLocationLoading(true);
+      const [{ error: locationError }, { error: profileError }] = await Promise.all([
+        (supabase.from("creator_live_locations" as any) as any)
+          .delete()
+          .eq("creator_id", user.id),
+        (supabase.from("creator_profiles") as any)
+          .update({ is_available_now: false, available_until: null })
+          .eq("profile_id", user.id),
+      ]);
+      setLiveLocationLoading(false);
+
+      if (locationError || profileError) {
+        toast.error("Live Now could not be turned off");
+        return;
+      }
+      setLiveNow(false);
+      toast.success("Live Now turned off");
+      return;
+    }
+
+    if (serviceAreas.length === 0) {
+      toast.error("Add a service area first", {
+        description: "Clients can only find you where you choose to provide service.",
+      });
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      toast.error("Location access is not available in this browser");
+      return;
+    }
+
+    setLiveLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      const { error: locationError } = await (supabase.from("creator_live_locations" as any) as any)
+        .upsert({
+          creator_id: user.id,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          accuracy_m: coords.accuracy,
+          is_active: true,
+          consented_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+          expires_at: expiresAt,
+        }, { onConflict: "creator_id" });
+
+      if (!locationError) {
+        const { error: profileError } = await (supabase.from("creator_profiles") as any)
+          .update({ is_available_now: true, available_until: expiresAt })
+          .eq("profile_id", user.id);
+
+        if (profileError) {
+          toast.error("Live status could not be updated", { description: profileError.message });
+        } else {
+          setLiveNow(true);
+          toast.success("You are Live Now", {
+            description: "Your location is shared with matching clients for 2 hours.",
+          });
+        }
+      } else {
+        toast.error("Live location could not be enabled", { description: locationError.message });
+      }
+      setLiveLocationLoading(false);
+    }, (error) => {
+      setLiveLocationLoading(false);
+      toast.error("Location permission is required", {
+        description: error.message || "Allow location access to turn on Live Now.",
+      });
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  };
 
   // Keep an editable profile draft on this device so tab switches/reloads do not erase work.
   useEffect(() => {
@@ -399,6 +611,110 @@ const Profile = () => {
                 )}
               </CardContent>
             </Card>
+
+            {accountType === "creator" && (
+              <>
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" /> Service Areas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Choose the cities or locations where you provide services. Clients searching inside these areas can find your profile.
+                    </p>
+                    <div className="relative">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            value={areaQuery}
+                            onChange={(event) => {
+                              setAreaQuery(event.target.value);
+                              setSelectedArea(null);
+                            }}
+                            placeholder="Search city or location..."
+                            className="pl-9"
+                          />
+                        </div>
+                        <Select value={areaRadius} onValueChange={setAreaRadius}>
+                          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {[5, 10, 25, 50, 100].map((radius) => (
+                              <SelectItem key={radius} value={String(radius)}>{radius} km</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" onClick={addServiceArea} disabled={!selectedArea || areaSaving}>
+                          {areaSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                          Add
+                        </Button>
+                      </div>
+                      {areaSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-32 top-14 z-30 overflow-hidden rounded-xl border bg-card shadow-xl">
+                          {areaSuggestions.map((suggestion, index) => (
+                            <button
+                              type="button"
+                              key={suggestion.place_id || `${suggestion.display_name}-${index}`}
+                              onClick={() => selectServiceAreaSuggestion(suggestion)}
+                              className="flex w-full items-start gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted"
+                            >
+                              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                              <span className="line-clamp-2">{suggestion.display_name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {serviceAreas.length > 0 ? (
+                      <div className="space-y-2">
+                        {serviceAreas.map((area) => (
+                          <div key={area.id} className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{area.label}</p>
+                              <p className="text-xs text-muted-foreground">Service radius: {area.radius_km} km</p>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeServiceArea(area.id)} aria-label={`Remove ${area.label}`}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                        No service area added yet.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-secondary" /> Live Now
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{liveNow ? "You are visible as Live Now" : "Turn on Live Now when you are available"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your exact location is shared only while you give permission and expires automatically after 2 hours.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={liveNow ? "secondary" : "default"}
+                      onClick={() => toggleLiveLocation(!liveNow)}
+                      disabled={liveLocationLoading}
+                    >
+                      {liveLocationLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                      {liveNow ? "Turn Off" : "Go Live"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
             <Card>
               <CardHeader><CardTitle>Personal Information</CardTitle></CardHeader>
