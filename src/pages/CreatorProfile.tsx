@@ -111,6 +111,10 @@ export default function CreatorProfile() {
   const [projectLikesCount, setProjectLikesCount] = useState(0);
   const [isProjectLiked, setIsProjectLiked] = useState(false);
   const [projectViews, setProjectViews] = useState(0);
+  const [projectSharesCount, setProjectSharesCount] = useState(0);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState("");
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false);
 
   // --- COMMENT STATE ---
   const [commentText, setCommentText] = useState("");
@@ -138,17 +142,29 @@ export default function CreatorProfile() {
     setProjectViews(currentViews + 1);
   };
 
-  const fetchProjectStats = async (portfolioItemId: string) => {
-    const { count, data, error } = await supabase
-      .from('project_likes')
-      .select('user_id', { count: 'exact' })
-      .eq('portfolio_item_id', portfolioItemId);
+  const fetchProjectStats = async (projectId: string) => {
+    const [likesResult, sharesResult] = await Promise.all([
+      (supabase.from('project_likes') as any)
+        .select('user_id', { count: 'exact' })
+        .or(`project_id.eq.${projectId},portfolio_item_id.eq.${projectId}`),
+      (supabase.from('project_shares') as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('project_id', projectId),
+    ]);
 
-    if (!error) {
-      setProjectLikesCount(count || 0);
-      if (user && data) {
-        setIsProjectLiked(data.some(like => like.user_id === user.id));
+    if (!likesResult.error) {
+      setProjectLikesCount(likesResult.count || 0);
+      if (user && likesResult.data) {
+        setIsProjectLiked(likesResult.data.some((like: any) => like.user_id === user.id));
       }
+    } else {
+      console.error("Failed to load project likes:", likesResult.error);
+    }
+
+    if (!sharesResult.error) {
+      setProjectSharesCount(sharesResult.count || 0);
+    } else {
+      console.error("Failed to load project shares:", sharesResult.error);
     }
   };
 
@@ -157,58 +173,63 @@ export default function CreatorProfile() {
 
     const previousLikedState = isProjectLiked;
     const previousCount = projectLikesCount;
+    const projectFilter = `project_id.eq.${viewingRichProject.id},portfolio_item_id.eq.${viewingRichProject.id}`;
 
     setIsProjectLiked(!previousLikedState);
     setProjectLikesCount(prev => prev + (previousLikedState ? -1 : 1));
 
     if (previousLikedState) {
-      const { error } = await supabase.from('project_likes')
+      const { error } = await (supabase.from('project_likes') as any)
         .delete()
-        .eq('portfolio_item_id', viewingRichProject.id)
+        .or(projectFilter)
         .eq('user_id', user!.id);
-      
-      if (error) { 
-        setIsProjectLiked(previousLikedState); 
-        setProjectLikesCount(previousCount); 
+
+      if (error) {
+        setIsProjectLiked(previousLikedState);
+        setProjectLikesCount(previousCount);
         toast.error("Failed to remove like");
       }
     } else {
-      const { error } = await supabase.from('project_likes')
-        .insert({ portfolio_item_id: viewingRichProject.id, user_id: user!.id });
-      
-      if (error) { 
-        setIsProjectLiked(previousLikedState); 
-        setProjectLikesCount(previousCount); 
+      const { error } = await (supabase.from('project_likes') as any)
+        .insert({ project_id: viewingRichProject.id, user_id: user!.id });
+
+      if (error) {
+        setIsProjectLiked(previousLikedState);
+        setProjectLikesCount(previousCount);
         toast.error("Failed to like project");
       }
     }
   };
 
-  const fetchComments = async (portfolioItemId: string) => {
-    const { data: commentsData, error: commentsError } = await supabase
-      .from('project_comments')
+  const fetchComments = async (projectId: string) => {
+    const { data: commentsData, error: commentsError } = await (supabase
+      .from('project_comments') as any)
       .select('*, profiles:user_id(name, avatar_url)')
-      .eq('portfolio_item_id', portfolioItemId)
+      .or(`project_id.eq.${projectId},portfolio_item_id.eq.${projectId}`)
       .order('created_at', { ascending: false });
-      
-    if (!commentsError && commentsData) {
-      setProjectComments(commentsData);
 
-      if (user) {
-        const commentIds = commentsData.map(c => c.id);
-        if (commentIds.length > 0) {
-          const { data: userLikes } = await supabase
-            .from('comment_likes')
-            .select('comment_id')
-            .eq('user_id', user.id)
-            .in('comment_id', commentIds);
+    if (commentsError) {
+      console.error("Failed to load project comments:", commentsError);
+      setProjectComments([]);
+      setLikedComments({});
+      return;
+    }
 
-          if (userLikes) {
-            const likesMap: Record<string, boolean> = {};
-            userLikes.forEach(like => likesMap[like.comment_id] = true);
-            setLikedComments(likesMap);
-          }
-        }
+    setProjectComments(commentsData || []);
+    setLikedComments({});
+
+    if (user && commentsData?.length > 0) {
+      const commentIds = commentsData.map((comment: any) => comment.id);
+      const { data: userLikes } = await supabase
+        .from('comment_likes')
+        .select('comment_id')
+        .eq('user_id', user.id)
+        .in('comment_id', commentIds);
+
+      if (userLikes) {
+        const likesMap: Record<string, boolean> = {};
+        userLikes.forEach(like => likesMap[like.comment_id] = true);
+        setLikedComments(likesMap);
       }
     }
   };
@@ -227,10 +248,10 @@ export default function CreatorProfile() {
     }
 
     setIsPostingComment(true);
-    const { error } = await supabase.from('project_comments').insert([{
-      portfolio_item_id: viewingRichProject.id,
+    const { error } = await (supabase.from('project_comments') as any).insert([{
+      project_id: viewingRichProject.id,
       user_id: user!.id,
-      content: commentText.trim() 
+      content: commentText.trim()
     }]);
 
     setIsPostingComment(false);
@@ -244,12 +265,111 @@ export default function CreatorProfile() {
     }
   };
 
+  const handleProjectShare = async () => {
+    if (!viewingRichProject) return;
+
+    const shareUrl = window.location.href;
+    let shared = false;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: viewingRichProject.title,
+          text: `View ${viewingRichProject.title} on Canecsu`,
+          url: shareUrl,
+        });
+        shared = true;
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Project link copied");
+        shared = true;
+      } else {
+        shared = Boolean(window.prompt("Copy this project link:", shareUrl));
+      }
+
+      if (!shared) return;
+
+      const { error } = await (supabase.from('project_shares') as any).insert({
+        project_id: viewingRichProject.id,
+        user_id: user?.id ?? null,
+      });
+
+      if (error) {
+        console.error("Failed to record project share:", error);
+        toast.warning("Link shared, but share count could not be updated.");
+      } else {
+        setProjectSharesCount(count => count + 1);
+      }
+    } catch (error: any) {
+      if (error?.name !== "AbortError") {
+        console.error("Project share failed:", error);
+        toast.error("Could not share this project.");
+      }
+    }
+  };
+
+  const startCommentEdit = (comment: any) => {
+    if (!user || comment.user_id !== user.id) return;
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.content || "");
+  };
+
+  const cancelCommentEdit = () => {
+    setEditingCommentId(null);
+    setEditingCommentText("");
+  };
+
+  const handleUpdateComment = async () => {
+    if (!requireAuth() || !editingCommentId || !editingCommentText.trim()) return;
+
+    const violation = checkContentViolations(editingCommentText);
+    if (violation) {
+      toast.error("Action Blocked", {
+        description: `Please remove ${violation.toLowerCase()} from your comment. Sharing contact info is strictly prohibited.`
+      });
+      return;
+    }
+
+    setIsUpdatingComment(true);
+    const updatedAt = new Date().toISOString();
+    const { error } = await (supabase.from('project_comments') as any)
+      .update({ content: editingCommentText.trim(), updated_at: updatedAt })
+      .eq('id', editingCommentId)
+      .eq('user_id', user!.id);
+
+    setIsUpdatingComment(false);
+
+    if (error) {
+      console.error("Failed to update comment:", error);
+      toast.error("Failed to update comment");
+      return;
+    }
+
+    setProjectComments(comments =>
+      comments.map(comment =>
+        comment.id === editingCommentId
+          ? { ...comment, content: editingCommentText.trim(), updated_at: updatedAt }
+          : comment,
+      ),
+    );
+    cancelCommentEdit();
+    toast.success("Comment updated");
+  };
+
   const handleLikeComment = async (commentId: string) => {
     if (!requireAuth()) return;
-    
+
     const isLiked = likedComments[commentId];
+    const likeDelta = isLiked ? -1 : 1;
     setLikedComments(prev => ({ ...prev, [commentId]: !isLiked }));
-    
+    setProjectComments(comments =>
+      comments.map(comment =>
+        comment.id === commentId
+          ? { ...comment, likes_count: Math.max(0, Number(comment.likes_count || 0) + likeDelta) }
+          : comment,
+      ),
+    );
+
     try {
       if (isLiked) {
         const { error } = await supabase.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user!.id);
@@ -260,6 +380,13 @@ export default function CreatorProfile() {
       }
     } catch (error) {
       setLikedComments(prev => ({ ...prev, [commentId]: isLiked }));
+      setProjectComments(comments =>
+        comments.map(comment =>
+          comment.id === commentId
+            ? { ...comment, likes_count: Math.max(0, Number(comment.likes_count || 0) - likeDelta) }
+            : comment,
+        ),
+      );
       toast.error("Failed to update like");
     }
   };
