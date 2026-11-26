@@ -44,6 +44,12 @@ type Review = Database["public"]["Tables"]["reviews"]["Row"];
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop";
 
+const getProjectFontFamily = (fontFamily?: string) => {
+  if (fontFamily === "serif") return "Georgia, Cambria, serif";
+  if (fontFamily === "mono") return "ui-monospace, SFMono-Regular, monospace";
+  return "ui-sans-serif, system-ui, sans-serif";
+};
+
 // Utility function to load the Razorpay script
 const loadRazorpayScript = () => {
   return new Promise<boolean>((resolve) => {
@@ -917,11 +923,19 @@ ${quoteMessage}`;
           </div>
 
           <div className="flex-1 overflow-y-auto w-full flex flex-col items-center bg-[#050505]">
-            <div className="w-full max-w-6xl py-0 sm:py-12 flex flex-col items-center">
+            <div
+              className="w-full py-0 sm:py-12 flex flex-col items-center"
+              style={{
+                maxWidth: (viewingRichProject?.settings as any)?.contentWidth === "narrow" ? "780px" : "1152px",
+                backgroundColor: (viewingRichProject?.settings as any)?.backgroundColor || "#050505",
+                color: (viewingRichProject?.settings as any)?.textColor || "#f4f4f5",
+                fontFamily: getProjectFontFamily((viewingRichProject?.settings as any)?.fontFamily),
+              }}
+            >
               {viewingRichProject?.content_blocks?.map((block: any, idx: number) => (
                 <div key={idx} className="w-full flex justify-center mb-12 last:mb-0">
                   {block.type === 'text' && (
-                    <div className="prose prose-lg prose-invert max-w-3xl w-full text-zinc-300 whitespace-pre-wrap font-serif px-6 py-4">
+                    <div className="prose prose-lg max-w-3xl w-full whitespace-pre-wrap px-6 py-4" style={{ color: (viewingRichProject?.settings as any)?.textColor || "#f4f4f5" }}>
                       {block.content}
                     </div>
                   )}
