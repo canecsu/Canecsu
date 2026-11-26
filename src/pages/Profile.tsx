@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { User, Mail, MapPin, Save, Edit, Camera, Briefcase } from "lucide-react";
@@ -32,6 +32,10 @@ const creatorCategories = [
   { value: "music-band", label: "Music Band" },
 ];
 
+const PROFILE_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const getProfileDraftKey = (userId: string) => `canecsu_profile_draft_${userId}`;
+
 const Profile = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -48,10 +52,54 @@ const Profile = () => {
   const [category, setCategory] = useState<string>("photographer");
   const [subcategory, setSubcategory] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const profileHydratedFor = useRef<string | null>(null);
+  const draftRestoredFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) { navigate("/login"); return; }
-    if (profile) {
+    if (!user) {
+      profileHydratedFor.current = null;
+      draftRestoredFor.current = null;
+      if (!loading) navigate("/login");
+      return;
+    }
+
+    if (!profile || profileHydratedFor.current === user.id) return;
+
+    const draftKey = getProfileDraftKey(user.id);
+    let draft: any = null;
+
+    try {
+      const rawDraft = localStorage.getItem(draftKey);
+      if (rawDraft) {
+        const parsed = JSON.parse(rawDraft);
+        if (
+          parsed?.updatedAt &&
+          Date.now() - parsed.updatedAt <= PROFILE_DRAFT_TTL_MS
+        ) {
+          draft = parsed;
+        } else {
+          localStorage.removeItem(draftKey);
+        }
+      }
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+
+    if (draft) {
+      setName(draft.name ?? profile.name ?? "");
+      setBio(draft.bio ?? profile.bio ?? "");
+      setCity(draft.city ?? profile.city ?? "");
+      setState(draft.state ?? profile.state ?? "");
+      setCountry(draft.country ?? profile.country ?? "India");
+      setPhone(draft.phone ?? profile.phone ?? "");
+      setWebsite(draft.website ?? profile.website ?? "");
+      setAvatarUrl(draft.avatarUrl ?? profile.avatar_url);
+      setAccountType(draft.accountType ?? profile.type ?? "client");
+      setCategory(draft.category ?? "photographer");
+      setSubcategory(draft.subcategory ?? "");
+      draftRestoredFor.current = user.id;
+      setEditing(true);
+    } else {
       setName(profile.name || "");
       setBio(profile.bio || "");
       setCity(profile.city || "");
@@ -61,18 +109,56 @@ const Profile = () => {
       setWebsite(profile.website || "");
       setAvatarUrl(profile.avatar_url);
       setAccountType(profile.type || "client");
+      draftRestoredFor.current = null;
     }
-  }, [user, profile, loading]);
 
-  // Fetch creator category if creator
+    profileHydratedFor.current = user.id;
+  }, [user, profile, loading, navigate]);
+
+  // Fetch creator category if creator, unless a local draft already restored it.
   useEffect(() => {
     if (user && profile?.type === "creator") {
       supabase.from("creator_profiles").select("category, subcategory").eq("profile_id", user.id).maybeSingle().then(({ data }: any) => {
+        if (draftRestoredFor.current === user.id) return;
         if (data?.category) setCategory(data.category);
         if (data?.subcategory) setSubcategory(data.subcategory);
       });
     }
   }, [user, profile?.type]);
+
+  // Keep an editable profile draft on this device so tab switches/reloads do not erase work.
+  useEffect(() => {
+    if (!user || profileHydratedFor.current !== user.id || !editing) return;
+
+    localStorage.setItem(getProfileDraftKey(user.id), JSON.stringify({
+      updatedAt: Date.now(),
+      name,
+      bio,
+      city,
+      state,
+      country,
+      phone,
+      website,
+      avatarUrl,
+      accountType,
+      category,
+      subcategory,
+    }));
+  }, [
+    user,
+    editing,
+    name,
+    bio,
+    city,
+    state,
+    country,
+    phone,
+    website,
+    avatarUrl,
+    accountType,
+    category,
+    subcategory,
+  ]);
 
   const handleAvatarUpload = async (url: string) => {
     setAvatarUrl(url);
@@ -126,6 +212,7 @@ const Profile = () => {
     }
 
     setSaving(false);
+    localStorage.removeItem(getProfileDraftKey(user.id));
     toast.success("Profile updated!");
     setEditing(false);
     // Reload to refresh auth context
