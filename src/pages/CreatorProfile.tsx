@@ -25,6 +25,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CATEGORY_LABELS } from "@/types/creator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { checkContentViolations } from "@/lib/contentModeration";
+
+export { checkContentViolations };
 import type { Database } from "@/integrations/supabase/types";
 
 // TypeScript definition for Razorpay
@@ -54,34 +57,6 @@ const loadRazorpayScript = () => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-};
-
-// 🛡️ SECURITY: 7 Strict Conditions to detect Contact Info
-export const checkContentViolations = (text: string) => {
-  if (!text) return null;
-  
-  // 1. Standard Email Addresses
-  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text)) return "Email addresses";
-  
-  // 2. Standard Phone Numbers (e.g., +91 9876543210)
-  if (/(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/.test(text)) return "Phone numbers";
-  
-  // 3. Spaced/Hidden Phone Numbers (e.g., 9 8 7 6 5 4)
-  if (/\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d[\s-]*\d+/.test(text)) return "Hidden phone numbers";
-  
-  // 4. Social Media Mentions (ig: username, whatsapp: number)
-  if (/(ig|insta|instagram|whatsapp|telegram|snapchat|sc|twitter|discord|fb|facebook)\s*[:=-]?\s*@?[\w.-]+/i.test(text)) return "Social media usernames";
-  
-  // 5. Direct Chat Links (wa.me, t.me)
-  if (/(wa\.me|t\.me|linktr\.ee)\/[a-zA-Z0-9_]+/i.test(text)) return "Direct chat links";
-  
-  // 6. External Websites
-  if (/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.(com|in|net|org|co)\b)/i.test(text)) return "External website links";
-  
-  // 7. DM Requests (e.g., "dm me at @username")
-  if (/(dm|contact|message|msg)\s+(me\s+)?(at|on|@)\s*@?[\w.-]+/i.test(text)) return "Direct messaging requests";
-
-  return null;
 };
 
 // 🛡️ SECURITY: Censor info on rendering (so old data is hidden)
