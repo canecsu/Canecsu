@@ -36,6 +36,11 @@ const PROFILE_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const getProfileDraftKey = (userId: string) => `canecsu_profile_draft_${userId}`;
 
+const normalizeProfilePhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+};
+
 const Profile = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -189,9 +194,41 @@ const Profile = () => {
       return;
     }
 
+    const normalizedPhone = normalizeProfilePhone(phone);
+    if (phone.trim() && !/^[6-9]\d{9}$/.test(normalizedPhone)) {
+      toast.error("Invalid mobile number", {
+        description: "Please enter a valid 10-digit mobile number.",
+      });
+      setSaving(false);
+      return;
+    }
+
+    if (normalizedPhone) {
+      const { data: existingPhone, error: phoneCheckError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .neq("id", user.id)
+        .maybeSingle();
+
+      if (phoneCheckError) {
+        toast.error("Could not verify mobile number. Please try again.");
+        setSaving(false);
+        return;
+      }
+
+      if (existingPhone) {
+        toast.error("Mobile number already registered", {
+          description: "Please use another mobile number.",
+        });
+        setSaving(false);
+        return;
+      }
+    }
+
     // Update profile
     const { error } = await supabase.from("profiles").update({
-      name, bio, city, state, country, phone, website, avatar_url: avatarUrl,
+      name, bio, city, state, country, phone: normalizedPhone, website, avatar_url: avatarUrl,
       type: accountType,
     }).eq("id", user.id);
 
