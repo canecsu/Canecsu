@@ -479,6 +479,7 @@ export default function ExploreMap() {
         { data: reviews },
         { data: serviceAreas },
         { data: liveLocations },
+        { data: rankingScores },
       ] = await Promise.all([
         supabase.from("profiles").select("*, creator_profiles(*)").eq("type", "creator"),
         supabase.from("reviews").select("creator_id, rating"),
@@ -487,6 +488,7 @@ export default function ExploreMap() {
           .select("*")
           .eq("is_active", true)
           .gt("expires_at", new Date().toISOString()),
+        (supabase.from("creator_ranking_scores" as any) as any).select("creator_id, total_score, is_paid_badge"),
       ]);
 
       if (profileError) throw profileError;
@@ -512,6 +514,7 @@ export default function ExploreMap() {
       const now = Date.now();
       const mapped = (profiles || []).map((p) => {
         const cp = p.creator_profiles?.[0];
+        const ranking = (rankingScores || []).find((item: any) => item.creator_id === p.id);
         const rev = reviewAgg[p.id] || { total: 0, count: 0 };
         const cityKey = (p.city || "patna").toLowerCase();
         const profileLat = Number(p.lat);
@@ -552,6 +555,8 @@ export default function ExploreMap() {
           lng,
           serviceAreas: areasByCreator[p.id] || [],
           liveLocation: hasActiveLiveLocation ? liveLocation : null,
+          rankScore: Number(ranking?.total_score ?? cp?.rank_score ?? 0),
+          isPaidBadge: Boolean(ranking?.is_paid_badge),
         };
       });
       setCreators(mapped);
@@ -651,7 +656,11 @@ export default function ExploreMap() {
       const budgetTier = budgetOptions.find(b => b.value === selectedBudget);
       if (budgetTier) results = results.filter(c => c.priceMin <= budgetTier.max && c.priceMax >= budgetTier.min);
     }
-    results.sort((a, b) => (b.isSponsored ? 1 : 0) - (a.isSponsored ? 1 : 0));
+    results.sort((a, b) => (
+      (b.rankScore || 0) - (a.rankScore || 0)
+      || Number(Boolean(b.isPaidBadge)) - Number(Boolean(a.isPaidBadge))
+      || (b.isSponsored ? 1 : 0) - (a.isSponsored ? 1 : 0)
+    ));
     return results;
   }, [creators, liveOnly, searchCoords, searchRadiusKm, selectedState, selectedCity, selectedCategory, selectedBudget, minRating]);
 
