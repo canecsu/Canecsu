@@ -59,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       message.includes("invalid referral") ||
       message.includes("already been used") ||
       message.includes("already used a referral") ||
-      message.includes("own referral")
+      message.includes("own referral") ||
+      message.includes("new accounts only")
     ) {
       localStorage.removeItem("canecsu_pending_referral");
     }
