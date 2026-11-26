@@ -488,7 +488,7 @@ export default function ExploreMap() {
           .select("*")
           .eq("is_active", true)
           .gt("expires_at", new Date().toISOString()),
-        (supabase.from("creator_ranking_scores" as any) as any).select("creator_id, total_score, is_paid_badge"),
+        (supabase.from("creator_ranking_scores" as any) as any).select("creator_id, total_score, is_paid_badge, badge_expires_at"),
       ]);
 
       if (profileError) throw profileError;
@@ -556,7 +556,11 @@ export default function ExploreMap() {
           serviceAreas: areasByCreator[p.id] || [],
           liveLocation: hasActiveLiveLocation ? liveLocation : null,
           rankScore: Number(ranking?.total_score ?? cp?.rank_score ?? 0),
-          isPaidBadge: Boolean(ranking?.is_paid_badge),
+          isPaidBadge: Boolean(
+            ranking?.is_paid_badge
+            && ranking?.badge_expires_at
+            && new Date(ranking.badge_expires_at).getTime() > Date.now()
+          ),
         };
       });
       setCreators(mapped);
