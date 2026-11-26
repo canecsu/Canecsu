@@ -53,7 +53,6 @@ const AdminPayments = () => {
   const [refunds, setRefunds] = useState<any[]>([]);
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -151,7 +150,6 @@ const AdminPayments = () => {
         })),
       ].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
-      setProfiles(profileNames);
       setRecords(normalized);
       setRefunds(refundRes.data || []);
       setWebhooks(webhookRes.data || []);
