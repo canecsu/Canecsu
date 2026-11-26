@@ -30,6 +30,20 @@ serve(async (req) => {
       if (authError || !user || user.id !== userId) {
         throw new Error("You can only purchase verification for your own account.");
       }
+
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceRoleKey) {
+        throw new Error("Creator verification is temporarily unavailable.");
+      }
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: creatorAccount, error: creatorError } = await adminClient
+        .from("creator_profiles")
+        .select("profile_id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      if (creatorError || !creatorAccount) {
+        throw new Error("Only creator accounts can purchase this badge.");
+      }
     }
 
     const key_id = Deno.env.get("RAZORPAY_KEY_ID");
