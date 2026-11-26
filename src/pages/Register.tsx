@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Camera, Sparkles, Briefcase, Phone, Calendar, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,14 @@ const creatorCategories = [
 ];
 
 const Register = () => {
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const referralCode = searchParams.get("ref")?.trim().toUpperCase();
+    if (referralCode) {
+      localStorage.setItem("canecsu_pending_referral", referralCode);
+    }
+  }, [searchParams]);
   const [showPassword, setShowPassword] = useState(false);
   const [accountType, setAccountType] = useState<"client" | "creator">("client");
   const [creatorType, setCreatorType] = useState<string>("");
@@ -97,6 +105,7 @@ const Register = () => {
       },
     );
     if (error) {
+      localStorage.removeItem("canecsu_pending_referral");
       setLoading(false);
       toast.error(error.message);
       return;
