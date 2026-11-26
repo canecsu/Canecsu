@@ -53,6 +53,7 @@ import AdminReports from "./pages/admin/AdminReports";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminBlogs from "./pages/admin/AdminBlogs";
 import AdminMessages from "./pages/admin/AdminMessages";
+import AdminPayments from "./pages/admin/AdminPayments";
 
 const queryClient = new QueryClient();
 
@@ -109,6 +110,7 @@ const App = () => (
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/blogs" element={<AdminBlogs />} />
             <Route path="/admin/messages" element={<AdminMessages />} />
+            <Route path="/admin/payments" element={<AdminPayments />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
