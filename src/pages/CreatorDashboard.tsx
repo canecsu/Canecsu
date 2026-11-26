@@ -319,11 +319,21 @@ const CreatorDashboard = () => {
   };
 
   const deleteProject = async (id: string) => {
+    const project = projects.find((item) => item.id === id);
+    const projectName = project?.title || "this project";
+    const confirmed = window.confirm(
+      "Delete \"" + projectName + "\"? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
     const { error } = await (supabase.from("projects" as any).delete().eq("id", id) as any);
-    if (!error) {
-      toast.success("Project deleted");
-      fetchAll();
+    if (error) {
+      toast.error("Failed to delete project");
+      return;
     }
+
+    toast.success("Project deleted");
+    fetchAll();
   };
 
   const addService = async () => {
@@ -570,7 +580,7 @@ const CreatorDashboard = () => {
                       {projects.length > 0 && (
                         <div>
                           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Layers size={16} /> Published Projects
+                            <Layers size={16} /> Your Projects
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {projects.map(proj => (
@@ -581,22 +591,54 @@ const CreatorDashboard = () => {
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     alt={proj.title || "Project"}
                                   />
-                                </div>
-                                <div className="p-4 flex justify-between items-center border-t border-gray-100">
-                                  <div>
-                                    <h4 className="font-bold text-gray-900 text-sm line-clamp-1">{proj.title}</h4>
-                                    <p className="text-xs font-medium text-gray-400 mt-1">
-                                      {new Date(proj.created_at).toLocaleDateString()}
-                                    </p>
+                                  <div className="absolute top-3 left-3">
+                                    <Badge variant={proj.published ? "default" : "secondary"}>
+                                      {proj.published ? "Published" : "Draft"}
+                                    </Badge>
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => deleteProject(proj.id)}
-                                    className="hover:bg-red-50 hover:text-red-500 rounded-full"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                </div>
+                                <div className="p-4 border-t border-gray-100">
+                                  <div className="flex justify-between items-start gap-3">
+                                    <div className="min-w-0">
+                                      <h4 className="font-bold text-gray-900 text-sm line-clamp-1">{proj.title}</h4>
+                                      <p className="text-xs font-medium text-gray-400 mt-1">
+                                        {new Date(proj.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title={proj.published ? "View project" : "Preview draft"}
+                                        onClick={() =>
+                                          proj.published
+                                            ? navigate("/creator/" + user?.id + "?project=" + proj.id)
+                                            : navigate("/portfolio/editor?projectId=" + proj.id)
+                                        }
+                                        className="hover:bg-blue-50 hover:text-blue-600 rounded-full"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Edit project"
+                                        onClick={() => navigate("/portfolio/editor?projectId=" + proj.id)}
+                                        className="hover:bg-amber-50 hover:text-amber-600 rounded-full"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Delete project"
+                                        onClick={() => deleteProject(proj.id)}
+                                        className="hover:bg-red-50 hover:text-red-500 rounded-full"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             ))}
