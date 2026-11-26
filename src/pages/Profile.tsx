@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ARTIST_SUBCATEGORIES } from "@/types/creator";
 import { DeleteAccountSection } from "@/components/privacy/DeleteAccountSection";
+import { checkContentViolations, moderationDescription } from "@/lib/contentModeration";
 
 const creatorCategories = [
   { value: "photographer", label: "Photographer" },
@@ -30,84 +31,6 @@ const creatorCategories = [
   { value: "dj", label: "DJ" },
   { value: "music-band", label: "Music Band" },
 ];
-
-// High-confidence moderation for public profile text.
-// The previous version matched short substrings such as "sc" and treated
-// ordinary year ranges as phone numbers, causing false positives.
-type ModerationField = "bio" | "name";
-
-const normalizeModerationText = (value: string) =>
-  value
-    .normalize("NFKC")
-    .replace(/[\u200B-\u200D\uFEFF]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const checkContentViolations = (text: string, field: ModerationField = "bio") => {
-  const normalized = normalizeModerationText(text);
-  if (!normalized) return null;
-
-  // Email addresses.
-  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(normalized)) {
-    return "Email addresses";
-  }
-
-  // Direct URLs and common domain names.
-  if (/(https?:\/\/[^\s]+|www\.[^\s]+|(?:[a-zA-Z0-9-]+\.)+(?:com|in|net|org|co)\b)/i.test(normalized)) {
-    return "External website links";
-  }
-
-  // Strong phone-number signal: 10+ digits in one phone-like chunk.
-  // This deliberately allows ordinary years such as 2015 or 2015-2024.
-  const phoneLikeChunks = normalized.match(/(?:\+?\d[\d\s().-]{8,}\d)/g) || [];
-  if (phoneLikeChunks.some((chunk) => (chunk.match(/\d/g) || []).length >= 10)) {
-    return "Phone numbers";
-  }
-
-  if (field === "bio") {
-    // Only detect social handles when a real @handle or an explicit
-    // platform + id/handle/username/profile label is present.
-    const hasSocialHandle = /(?:^|[\s([{])@[a-z0-9][a-z0-9_.-]{1,30}\b/i.test(normalized);
-    const hasSocialPlatform = /\b(?:instagram|insta|ig|facebook|fb|twitter|discord|telegram|snapchat|whatsapp|youtube|linkedin)\b/i.test(normalized);
-    const hasLabeledSocialId = /\b(?:id|handle|username|profile|account)\s*(?:is|:|=)\s*@?[a-z0-9][a-z0-9_.-]{1,30}\b/i.test(normalized);
-
-    if (hasSocialHandle || (hasSocialPlatform && hasLabeledSocialId)) {
-      return "Social media usernames";
-    }
-
-    if (/(?:wa\.me|t\.me|linktr\.ee)\/[a-zA-Z0-9_.-]+/i.test(normalized)) {
-      return "Direct chat links";
-    }
-
-    if (/(?:dm|direct message|message|msg|contact)\s+(?:me|us)\s+(?:on|at|via)\b/i.test(normalized)) {
-      return "Direct messaging requests";
-    }
-
-    // High-confidence explicit sexual-content terms only.
-    if (/\b(?:porn|pornography|nude|nudity|naked|xxx|escort(?:s)?|onlyfans|sex\s*work)\b/i.test(normalized)) {
-      return "Sexual content";
-    }
-  }
-
-  return null;
-};
-
-const moderationDescription = (violation: string, field: ModerationField) => {
-  const subject = field === "name" ? "name" : "bio";
-  if (violation === "Sexual content") {
-    return "Your " + subject + " contains sexual content, which is not allowed.";
-  }
-  if (violation === "Social media usernames") {
-    return "Please remove social media IDs or usernames from your " + subject + ".";
-  }
-  if (violation === "Direct messaging requests" || violation === "Direct chat links") {
-    return "Please keep direct contact requests and chat links out of your " + subject + ".";
-  }
-  if (violation === "External website links") {
-    return "Please remove external website links from your " + subject + ".";
-  }
-  return "Please remove direct contact information from your " + subject + ".";
-};
 
 const Profile = () => {
   const { user, profile, loading } = useAuth();
