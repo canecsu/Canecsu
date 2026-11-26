@@ -69,10 +69,20 @@ serve(async (req) => {
         throw new Error("You can only purchase verification for your own account.");
       }
 
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceRoleKey) {
+        throw new Error("Creator verification is temporarily unavailable.");
+      }
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: creatorAccount, error: creatorError } = await adminClient
+        .from("creator_profiles")
+        .select("profile_id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      if (creatorError || !creatorAccount) {
+        throw new Error("Only creator accounts can purchase this badge.");
+      }
+
       const { data: existingBadge, error: existingError } = await adminClient
         .from("creator_verification_subscriptions")
         .select("id")
