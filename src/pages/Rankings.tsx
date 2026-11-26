@@ -21,6 +21,16 @@ interface RankedCreator {
   rank_score: number;
   avg_rating: number;
   review_count: number;
+  completed_bookings: number;
+  total_bookings: number;
+  is_paid_badge: boolean;
+  badge_expires_at: string | null;
+  portfolio_score: number;
+  rating_score: number;
+  response_score: number;
+  activity_score: number;
+  verification_score: number;
+  booking_score: number;
 }
 
 const Rankings = () => {
@@ -34,30 +44,52 @@ const Rankings = () => {
 
   const fetchRankings = async () => {
     setLoading(true);
-    const { data: profiles } = await supabase.from("profiles").select("id, name, avatar_url, is_verified, city").eq("type", "creator");
-    const { data: cps } = await supabase.from("creator_profiles").select("profile_id, category, rank_score");
-    const { data: reviews } = await supabase.from("reviews").select("creator_id, rating");
+    const [
+      { data: profiles, error: profilesError },
+      { data: cps },
+      { data: scores },
+    ] = await Promise.all([
+      supabase.from("profiles").select("id, name, avatar_url, is_verified, city").eq("type", "creator"),
+      supabase.from("creator_profiles").select("profile_id, category, rank_score"),
+      (supabase.from("creator_ranking_scores" as any) as any).select("*"),
+    ]);
 
-    if (!profiles || !cps) { setLoading(false); return; }
-
-    const revAgg: Record<string, { total: number; count: number }> = {};
-    (reviews || []).forEach(r => {
-      if (!revAgg[r.creator_id]) revAgg[r.creator_id] = { total: 0, count: 0 };
-      revAgg[r.creator_id].total += r.rating;
-      revAgg[r.creator_id].count++;
-    });
+    if (profilesError || !profiles || !cps) {
+      setRanked([]);
+      setLoading(false);
+      return;
+    }
 
     const list: RankedCreator[] = profiles.map(p => {
       const cp = cps.find(c => c.profile_id === p.id);
-      const rv = revAgg[p.id] || { total: 0, count: 0 };
+      const score = (scores || []).find((item: any) => item.creator_id === p.id);
       return {
-        id: p.id, name: p.name, avatar_url: p.avatar_url, is_verified: p.is_verified, city: p.city,
+        id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+        is_verified: p.is_verified,
+        city: p.city,
         category: cp?.category || "photographer",
-        rank_score: cp?.rank_score || 0,
-        avg_rating: rv.count > 0 ? rv.total / rv.count : 0,
-        review_count: rv.count,
+        rank_score: Number(score?.total_score ?? cp?.rank_score ?? 0),
+        avg_rating: Number(score?.avg_rating ?? 0),
+        review_count: Number(score?.review_count ?? 0),
+        completed_bookings: Number(score?.completed_bookings ?? 0),
+        total_bookings: Number(score?.total_bookings ?? 0),
+        is_paid_badge: Boolean(score?.is_paid_badge),
+        badge_expires_at: score?.badge_expires_at || null,
+        portfolio_score: Number(score?.portfolio_score ?? 0),
+        rating_score: Number(score?.rating_score ?? 0),
+        response_score: Number(score?.response_score ?? 0),
+        activity_score: Number(score?.activity_score ?? 0),
+        verification_score: Number(score?.verification_score ?? 0),
+        booking_score: Number(score?.booking_score ?? 0),
       };
-    }).sort((a, b) => b.rank_score - a.rank_score);
+    }).sort((a, b) => (
+      b.rank_score - a.rank_score
+      || Number(b.is_paid_badge) - Number(a.is_paid_badge)
+      || b.completed_bookings - a.completed_bookings
+      || b.avg_rating - a.avg_rating
+    ));
 
     setRanked(list);
     setLoading(false);
@@ -108,13 +140,16 @@ const Rankings = () => {
             <div className="bg-card rounded-2xl p-6 shadow-card mb-8 max-w-2xl mx-auto">
               <h3 className="font-heading font-semibold text-sm mb-3 text-center">How Rankings Work</h3>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center">
-                {[["Portfolio", "25%"], ["Ratings", "25%"], ["Response", "15%"], ["Activity", "15%"], ["Verified", "10%"], ["Bookings", "10%"]].map(([label, pct]) => (
+                {[["Portfolio quality", "25%"], ["Customer ratings", "25%"], ["Response rate", "15%"], ["Recent activity", "15%"], ["Trust & badge", "10%"], ["Completed bookings", "10%"]].map(([label, pct]) => (
                   <div key={label} className="p-2 bg-muted rounded-xl">
                     <p className="font-heading font-bold text-primary text-sm">{pct}</p>
                     <p className="text-xs text-muted-foreground">{label}</p>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                Scores are calculated from completed work and genuine customer activity. The paid ₹99 badge contributes only 5 of the 10 Trust & badge points and never guarantees the #1 position.
+              </p>
             </div>
 
             {loading ? (
@@ -135,7 +170,8 @@ const Rankings = () => {
                       <div className="flex items-center gap-2">
                         <span className="font-heading font-semibold truncate">{creator.name}</span>
                         {/* Verified Badge Added Here */}
-                        {creator.is_verified && <BadgeCheck className="h-4 w-4 text-blue-500 shrink-0" />}
+                        {creator.is_verified && <BadgeCheck className="h-4 w-4 text-blue-500 shrink-0" title="Officially verified" />}
+                        {creator.is_paid_badge && <BadgeCheck className="h-4 w-4 text-amber-500 fill-amber-400 shrink-0" title="Canecsu Creator Verification badge" />}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <CategoryPill category={creator.category as any} size="sm" showIcon={false} />
@@ -144,8 +180,8 @@ const Rankings = () => {
                     </div>
                     <StarRating rating={creator.avg_rating} size="sm" />
                     <div className="text-right shrink-0">
-                      <p className="font-heading font-bold text-primary">{creator.rank_score}</p>
-                      <p className="text-xs text-muted-foreground">{creator.review_count} reviews</p>
+                      <p className="font-heading font-bold text-primary">{creator.rank_score}/100</p>
+                      <p className="text-xs text-muted-foreground">{creator.review_count} verified reviews · {creator.completed_bookings} completed</p>
                     </div>
                   </motion.div>
                 ))}
