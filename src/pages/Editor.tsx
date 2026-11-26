@@ -48,6 +48,27 @@ const fontFamilyMap: Record<ProjectSettings["fontFamily"], string> = {
   mono: "ui-monospace, SFMono-Regular, monospace",
 };
 
+type ToolButtonProps = {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string;
+  onClick: () => void;
+};
+
+function ToolButton({ icon: Icon, label, onClick }: ToolButtonProps) {
+  return (
+    <button
+      type="button"
+      className="flex flex-col items-center gap-3 cursor-pointer group"
+      onClick={onClick}
+    >
+      <div className="w-20 h-20 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 group-hover:border-blue-500 group-hover:text-blue-600 group-hover:shadow-md transition-all">
+        <Icon size={28} strokeWidth={1.5} />
+      </div>
+      <span className="text-sm font-bold text-gray-700">{label}</span>
+    </button>
+  );
+}
+
 export default function Editor() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -340,28 +361,7 @@ export default function Editor() {
     setProjectSettings((settings) => ({ ...settings, ...changes }));
   };
 
-  const ToolButton = ({
-    icon: Icon,
-    label,
-    onClick,
-  }: {
-    icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
-    label: string;
-    onClick: () => void;
-  }) => (
-    <button
-      type="button"
-      className="flex flex-col items-center gap-3 cursor-pointer group"
-      onClick={onClick}
-    >
-      <div className="w-20 h-20 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 group-hover:border-blue-500 group-hover:text-blue-600 group-hover:shadow-md transition-all">
-        <Icon size={28} strokeWidth={1.5} />
-      </div>
-      <span className="text-sm font-bold text-gray-700">{label}</span>
-    </button>
-  );
-
-  const canvasWidth = projectSettings.contentWidth === "narrow" ? "780px" : "1100px";
+    const canvasWidth = projectSettings.contentWidth === "narrow" ? "780px" : "1100px";
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex flex-col font-sans">
