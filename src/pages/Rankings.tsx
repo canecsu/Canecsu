@@ -121,7 +121,7 @@ const Rankings = () => {
                 <Trophy className="h-4 w-4" /> Leaderboard
               </div>
               <h1 className="font-heading text-4xl md:text-5xl font-bold mb-4">Creator Rankings</h1>
-              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">Transparent, data-driven rankings updated weekly</p>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">Transparent, data-driven rankings updated automatically</p>
             </motion.div>
 
             <div className="flex flex-wrap gap-3 justify-center mb-8">
