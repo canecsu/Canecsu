@@ -5,7 +5,6 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -56,14 +55,27 @@ export default function Referrals() {
   };
 
   const handleJoin = async () => {
-    if (!user || !joinCode.trim()) return;
-    const { data: ref } = await supabase.from("referrals").select("*").eq("referral_code", joinCode.trim()).maybeSingle();
-    if (!ref) { toast.error("Invalid referral code"); return; }
-    if (ref.referrer_id === user.id) { toast.error("Can't use your own code"); return; }
+    if (!user || !joinCode.trim()) {
+      toast.error("Please enter a referral code");
+      return;
+    }
 
-    const { error } = await supabase.from("referrals").update({ referred_id: user.id, status: "completed" }).eq("id", ref.id);
-    if (error) toast.error("Failed to apply code");
-    else toast.success("Referral applied! You both earn rewards 🎉");
+    const { data, error } = await supabase.rpc("complete_referral", {
+      p_referral_code: joinCode.trim().toUpperCase(),
+    });
+
+    if (error) {
+      toast.error(error.message || "Failed to apply referral code");
+      return;
+    }
+
+    setJoinCode("");
+    const resultStatus = Array.isArray(data) ? data[0]?.result_status : data?.result_status;
+    toast.success(
+      resultStatus === "already_completed"
+        ? "This referral was already applied."
+        : "Referral applied! You both received 30 days of Pro access 🎉",
+    );
   };
 
   const completedCount = referrals.filter(r => r.status === "completed").length;
