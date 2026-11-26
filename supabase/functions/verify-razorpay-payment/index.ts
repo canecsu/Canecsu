@@ -166,6 +166,7 @@ serve(async (req) => {
       plan_name: normalizedPlan,
       amount: amount,
       payment_id: razorpay_payment_id,
+      razorpay_order_id,
       status: "active",
       expires_at: expiresAt,
     });
