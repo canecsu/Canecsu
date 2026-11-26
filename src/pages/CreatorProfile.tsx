@@ -90,6 +90,7 @@ export default function CreatorProfile() {
   const [reviews, setReviews] = useState<Review[]>([]);
   
   const [creatorPlan, setCreatorPlan] = useState<string>("free");
+  const [isPaidVerification, setIsPaidVerification] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
@@ -402,13 +403,21 @@ export default function CreatorProfile() {
 
   const fetchCreator = async (creatorId: string) => {
     setLoading(true);
-    const [pRes, cpRes, svcRes, revRes, projRes, subRes] = await Promise.all([
+    const [pRes, cpRes, svcRes, revRes, projRes, subRes, badgeRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", creatorId).single(),
       supabase.from("creator_profiles").select("*").eq("profile_id", creatorId).single(),
       supabase.from("services").select("*").eq("creator_id", creatorId).eq("is_active", true),
       supabase.from("reviews").select("*").eq("creator_id", creatorId).order("created_at", { ascending: false }),
       (supabase.from("projects" as any).select("*").eq("creator_id", creatorId).eq("published", true).order("created_at", { ascending: false }) as any), 
-      supabase.from("subscriptions").select("plan_name").eq("user_id", creatorId).maybeSingle()
+      supabase.from("subscriptions").select("plan_name").eq("user_id", creatorId).maybeSingle(),
+      (supabase.from("creator_verification_subscriptions" as any) as any)
+        .select("expires_at, status")
+        .eq("user_id", creatorId)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     
     setProfile(pRes.data);
@@ -421,7 +430,8 @@ export default function CreatorProfile() {
       const projectToOpen = loadedProjects.find((project: any) => project.id === projectQueryId);
       if (projectToOpen) setViewingRichProject(projectToOpen);
     }
-    setCreatorPlan(subRes.data?.plan_name?.toLowerCase() || "free"); 
+    setCreatorPlan(subRes.data?.plan_name?.toLowerCase() || "free");
+    setIsPaidVerification(Boolean(badgeRes.data)); 
     setLoading(false);
   };
 
@@ -714,6 +724,9 @@ ${quoteMessage}`;
                 {(creatorPlan === 'pro' || creatorPlan === 'premium pass') && (
                   <span title="Premium Verified"><BadgeCheck className="w-6 h-6 text-white fill-blue-500" /></span>
                 )}
+                {isPaidVerification && (
+                  <span title="Canecsu Creator Verification"><BadgeCheck className="w-6 h-6 text-white fill-amber-500" /></span>
+                )}
               </div>
               <p className="text-sm font-semibold tracking-wide text-muted-foreground mt-1">
                 {categoryLabel || "Creator"}
@@ -889,6 +902,9 @@ ${quoteMessage}`;
                                   {(creatorPlan === 'pro' || creatorPlan === 'premium pass') && (
                                     <span title="Premium Verified"><BadgeCheck className="w-3.5 h-3.5 text-white fill-blue-500" /></span>
                                   )}
+                                  {isPaidVerification && (
+                                    <span title="Canecsu Creator Verification"><BadgeCheck className="w-3.5 h-3.5 text-white fill-amber-500" /></span>
+                                  )}
                                 </div>
                                 {project.views_count !== undefined && (
                                   <div className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
@@ -1022,6 +1038,9 @@ ${quoteMessage}`;
                   )}
                   {(creatorPlan === 'pro' || creatorPlan === 'premium pass') && (
                     <span title="Premium Verified"><BadgeCheck className="w-3.5 h-3.5 text-[#0a0a0a] fill-blue-500" /></span>
+                  )}
+                  {isPaidVerification && (
+                    <span title="Canecsu Creator Verification"><BadgeCheck className="w-3.5 h-3.5 text-[#0a0a0a] fill-amber-500" /></span>
                   )}
                 </div>
               </div>
