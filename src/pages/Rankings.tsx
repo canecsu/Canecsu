@@ -75,7 +75,11 @@ const Rankings = () => {
         review_count: Number(score?.review_count ?? 0),
         completed_bookings: Number(score?.completed_bookings ?? 0),
         total_bookings: Number(score?.total_bookings ?? 0),
-        is_paid_badge: Boolean(score?.is_paid_badge),
+        is_paid_badge: Boolean(
+          score?.is_paid_badge
+          && score?.badge_expires_at
+          && new Date(score.badge_expires_at).getTime() > Date.now()
+        ),
         badge_expires_at: score?.badge_expires_at || null,
         portfolio_score: Number(score?.portfolio_score ?? 0),
         rating_score: Number(score?.rating_score ?? 0),
