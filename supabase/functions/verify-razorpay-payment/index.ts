@@ -48,6 +48,68 @@ serve(async (req) => {
       );
     }
 
+
+    // Creator Verification is a separate ₹99 / 30-day badge. It never changes
+    // the official identity-verification flag on profiles.
+    if (planName === "Creator Verification") {
+      if (Number(amount) !== 99 || !userId) {
+        throw new Error("Creator Verification must be exactly ₹99.");
+      }
+
+      const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      if (!accessToken || !supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Authentication is required for creator verification.");
+      }
+
+      const authClient = createClient(supabaseUrl, supabaseAnonKey);
+      const { data: { user }, error: authError } = await authClient.auth.getUser(accessToken);
+      if (authError || !user || user.id !== userId) {
+        throw new Error("You can only purchase verification for your own account.");
+      }
+
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: existingBadge, error: existingError } = await adminClient
+        .from("creator_verification_subscriptions")
+        .select("id")
+        .eq("razorpay_payment_id", razorpay_payment_id)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existingBadge) {
+        return new Response(
+          JSON.stringify({ success: true, alreadyProcessed: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const startsAt = new Date();
+      const expiresAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: badgeError } = await adminClient
+        .from("creator_verification_subscriptions")
+        .insert({
+          user_id: userId,
+          plan_name: "creator_verification",
+          amount: 99,
+          razorpay_order_id,
+          razorpay_payment_id,
+          status: "active",
+          starts_at: startsAt.toISOString(),
+          expires_at: expiresAt,
+        });
+
+      if (badgeError) throw badgeError;
+
+      return new Response(
+        JSON.stringify({ success: true, badgeExpiresAt: expiresAt }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // ⏳ PLAN LOGIC
     const now = new Date();
     let expiresAt: string | null = null;
