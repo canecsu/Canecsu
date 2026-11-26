@@ -11,6 +11,7 @@ import {
   LogOut,
   FileText,
   Mail,
+  IndianRupee,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -34,6 +35,7 @@ const mainItems = [
   { title: "Verification", url: "/admin/verification", icon: ShieldCheck },
   { title: "Content", url: "/admin/content", icon: FileWarning },
   { title: "Messages", url: "/admin/messages", icon: Mail },
+  { title: "Payments", url: "/admin/payments", icon: IndianRupee },
 ];
 
 const managementItems = [
