@@ -131,6 +131,7 @@ const CreatorDashboard = () => {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
   );
+  const [, setReminderTick] = useState(0);
 
   // Profile form
   const [bio, setBio] = useState("");
@@ -208,6 +209,25 @@ const CreatorDashboard = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => {
+      setReminderTick((value) => value + 1);
+    }, 60 * 1000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!verificationBadge) return;
+
+    const checkReminder = () => {
+      void ensureBadgeExpiryReminder(verificationBadge);
+    };
+
+    const reminderTimer = window.setInterval(checkReminder, 60 * 60 * 1000);
+    return () => window.clearInterval(reminderTimer);
+  }, [verificationBadge, user?.id]);
 
   const fetchAll = async () => {
     if (!user) return;
