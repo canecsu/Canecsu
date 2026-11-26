@@ -58,6 +58,46 @@ import { checkContentViolations, moderationDescription } from "@/lib/contentMode
 import { CATEGORY_LABELS } from "@/types/creator";
 import type { Database } from "@/integrations/supabase/types";
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+const loadRazorpayScript = () => new Promise<boolean>((resolve) => {
+  if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+    resolve(true);
+    return;
+  }
+  const script = document.createElement("script");
+  script.src = "https://checkout.razorpay.com/v1/checkout.js";
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
+
+const getVerificationExpiryReminder = (expiresAt: string) => {
+  const hoursLeft = (new Date(expiresAt).getTime() - Date.now()) / (60 * 60 * 1000);
+  if (hoursLeft <= 0 || hoursLeft > 5 * 24) return null;
+  if (hoursLeft <= 1) {
+    return {
+      key: "one_hour",
+      message: "Your Canecsu Creator Verification badge expires in about 1 hour. Renew now to keep your ranking benefit.",
+    };
+  }
+  const daysLeft = Math.ceil(hoursLeft / 24);
+  if (daysLeft <= 1) {
+    return {
+      key: "today",
+      message: "Your Canecsu Creator Verification badge expires today. Renew now to keep your ranking benefit.",
+    };
+  }
+  return {
+    key: `${daysLeft}_days`,
+    message: `Your Canecsu Creator Verification badge expires in ${daysLeft} days. Renew now to keep your ranking benefit.`,
+  };
+};
+
 type CreatorProfile = Database["public"]["Tables"]["creator_profiles"]["Row"];
 type Service = Database["public"]["Tables"]["services"]["Row"];
 type PortfolioItem = Database["public"]["Tables"]["portfolio_items"]["Row"];
@@ -86,6 +126,8 @@ const CreatorDashboard = () => {
   const [editingProfile, setEditingProfile] = useState(false);
   const [addingService, setAddingService] = useState(false);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [verificationBadge, setVerificationBadge] = useState<any | null>(null);
+  const [badgePaymentLoading, setBadgePaymentLoading] = useState(false);
 
   // Profile form
   const [bio, setBio] = useState("");
@@ -121,10 +163,35 @@ const CreatorDashboard = () => {
     if (user) fetchAll();
   }, [user, loading]);
 
+  const ensureBadgeExpiryReminder = async (badge: any) => {
+    if (!user || !badge?.expires_at) return;
+    const reminder = getVerificationExpiryReminder(badge.expires_at);
+    if (!reminder) return;
+
+    const { data: existingReminder } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("type", "verification_expiry")
+      .eq("message", reminder.message)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingReminder) {
+      await supabase.from("notifications").insert({
+        user_id: user.id,
+        title: "Verification badge expiring",
+        message: reminder.message,
+        type: "verification_expiry",
+        link: "/dashboard",
+      });
+    }
+  };
+
   const fetchAll = async () => {
     if (!user) return;
 
-    const [pRes, cpRes, svcRes, portRes, projRes, bookRes, revRes] = await Promise.all([
+    const [pRes, cpRes, svcRes, portRes, projRes, bookRes, revRes, badgeRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase.from("creator_profiles").select("*").eq("profile_id", user.id).single(),
       supabase.from("services").select("*").eq("creator_id", user.id).order("created_at", { ascending: false }),
@@ -136,6 +203,14 @@ const CreatorDashboard = () => {
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false }),
       supabase.from("reviews").select("*").eq("creator_id", user.id).order("created_at", { ascending: false }),
+      (supabase.from("creator_verification_subscriptions" as any) as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (cpRes.data) {
@@ -165,6 +240,76 @@ const CreatorDashboard = () => {
     setProjects(projRes.data || []);
     setBookings(bookRes.data || []);
     setReviews(revRes.data || []);
+    setVerificationBadge(badgeRes.data || null);
+    if (badgeRes.data) void ensureBadgeExpiryReminder(badgeRes.data);
+  };
+
+  const handleBuyVerificationBadge = async () => {
+    if (!user) return;
+    setBadgePaymentLoading(true);
+
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error("Razorpay checkout could not be loaded.");
+
+      const { data: orderData, error: orderError } = await supabase.functions.invoke(
+        "create-razorpay-order",
+        { body: { amount: 99, planName: "Creator Verification", userId: user.id } },
+      );
+
+      if (orderError || !orderData?.orderId || !orderData?.keyId) {
+        throw new Error(orderError?.message || "Could not create the verification order.");
+      }
+
+      const payment = new window.Razorpay({
+        key: orderData.keyId,
+        amount: 9900,
+        currency: "INR",
+        name: "Canecsu",
+        description: "Creator Verification Badge - 30 days",
+        order_id: orderData.orderId,
+        handler: async (response: any) => {
+          const { data: verificationData, error: verificationError } = await supabase.functions.invoke(
+            "verify-razorpay-payment",
+            {
+              body: {
+                ...response,
+                planName: "Creator Verification",
+                amount: 99,
+                userId: user.id,
+              },
+            },
+          );
+
+          if (verificationError || !verificationData?.success) {
+            toast.error("Payment received but badge activation needs support", {
+              description: verificationError?.message || verificationData?.error || "Please contact Canecsu support.",
+            });
+          } else {
+            toast.success("Creator Verification badge activated", {
+              description: "Your badge is active for 30 days and contributes 5 ranking points.",
+            });
+            await fetchAll();
+          }
+          setBadgePaymentLoading(false);
+        },
+        modal: {
+          ondismiss: () => {
+            setBadgePaymentLoading(false);
+            toast.info("Verification payment cancelled");
+          },
+        },
+        prefill: { name: profile?.name || "", email: user.email || "" },
+        theme: { color: "#d49b17" },
+      });
+
+      payment.open();
+    } catch (error: any) {
+      setBadgePaymentLoading(false);
+      toast.error("Verification payment could not be started", {
+        description: error?.message || "Please try again.",
+      });
+    }
   };
 
   const handleGetLocation = () => {
@@ -512,6 +657,42 @@ const CreatorDashboard = () => {
                 </Button>
               </div>
             )}
+
+            <Card className={`mb-6 rounded-2xl border-2 ${verificationBadge ? "border-amber-300 bg-amber-50/60" : "border-blue-100 bg-white"}`}>
+              <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className={`rounded-2xl p-3 ${verificationBadge ? "bg-amber-100" : "bg-blue-50"}`}>
+                    <BadgeCheck className={`h-7 w-7 ${verificationBadge ? "text-amber-600" : "text-blue-600"}`} />
+                  </div>
+                  <div>
+                    <h2 className="font-heading font-black text-gray-900">
+                      {verificationBadge ? "Creator Verification Badge is active" : "Get the Creator Verification Badge"}
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {verificationBadge
+                        ? `Active until ${new Date(verificationBadge.expires_at).toLocaleDateString("en-IN")}. It contributes 5 of 100 ranking points.`
+                        : "₹99 for 30 days. This is a paid platform badge, not an identity or government verification."}
+                    </p>
+                    {verificationBadge && (() => {
+                      const reminder = getVerificationExpiryReminder(verificationBadge.expires_at);
+                      return reminder ? (
+                        <p className="mt-2 flex items-center gap-1.5 text-sm font-bold text-red-600">
+                          <Clock className="h-4 w-4" /> {reminder.message.replace("Your Canecsu ", "").replace(" Renew now to keep your ranking benefit.", "")}
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+                <Button
+                  onClick={handleBuyVerificationBadge}
+                  disabled={badgePaymentLoading}
+                  className="shrink-0 rounded-full bg-amber-500 text-white hover:bg-amber-600 font-bold"
+                >
+                  {badgePaymentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Crown className="h-4 w-4 mr-2" />}
+                  {verificationBadge ? "Renew for ₹99" : "Activate for ₹99"}
+                </Button>
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
               {[
