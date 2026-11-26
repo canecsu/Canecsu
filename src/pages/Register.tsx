@@ -26,7 +26,7 @@ const creatorCategories = [
 ];
 
 const normalizePhoneNumber = (value: string) => {
-  const digits = value.replace(/\\D/g, "");
+  const digits = value.replace(/\D/g, "");
   return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
 };
 
@@ -75,7 +75,7 @@ const Register = () => {
       return;
     }
     const normalizedPhone = normalizePhoneNumber(phone);
-    if (!/^[6-9]\\d{9}$/.test(normalizedPhone)) {
+    if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
       toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
