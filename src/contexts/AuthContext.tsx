@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { ...profileData, name, type, category },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 

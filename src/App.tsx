@@ -3,58 +3,57 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { AdminGuard } from "@/components/admin/AdminGuard";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { BreachBanner } from "@/components/privacy/BreachBanner";
+import Analytics from "@/components/Analytics";
+import Seo from "@/components/Seo";
 
-// Standard Pages
-import Index from "./pages/Index";
-import Search from "./pages/Search";
-import CreatorProfile from "./pages/CreatorProfile";
-import Categories from "./pages/Categories";
-import Rankings from "./pages/Rankings";
-import Registercreator from "./pages/Registercreator";
-import About from "./pages/About";
-import Map from "./pages/map";
-import HowItWorks from "./pages/HowItWorks";
-import Blog from "./pages/Blog";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import CreatorDashboard from "./pages/CreatorDashboard";
-import ClientDashboard from "./pages/ClientDashboard";
-import Profile from "./pages/Profile";
-import CityCreators from "./pages/CityCreators";
-import Contact from "./pages/Contact";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import VerificationTerms from "./pages/VerificationTerms";
-import Help from "./pages/Help";
-import NotFound from "./pages/NotFound";
-import ResetPassword from "./pages/ResetPassword";
-import CollabHub from "./pages/CollabHub";
-import Referrals from "./pages/Referrals";
-import Feed from "./pages/Feed";
-import EscrowBooking from "./pages/EscrowBooking";
-import Messages from "./pages/Messages";
-
-// New Portfolio Editor Page
-import Editor from "./pages/Editor";
-
-// Admin pages
-import AdminOverview from "./pages/admin/AdminOverview";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminVerification from "./pages/admin/AdminVerification";
-import AdminContent from "./pages/admin/AdminContent";
-import AdminRankings from "./pages/admin/AdminRankings";
-import AdminFeatured from "./pages/admin/AdminFeatured";
-import AdminDisputes from "./pages/admin/AdminDisputes";
-import AdminReports from "./pages/admin/AdminReports";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminBlogs from "./pages/admin/AdminBlogs";
-import AdminMessages from "./pages/admin/AdminMessages";
-import AdminPayments from "./pages/admin/AdminPayments";
+const Index = lazy(() => import("./pages/Index"));
+const Search = lazy(() => import("./pages/Search"));
+const CreatorProfile = lazy(() => import("./pages/CreatorProfile"));
+const Categories = lazy(() => import("./pages/Categories"));
+const Rankings = lazy(() => import("./pages/Rankings"));
+const Registercreator = lazy(() => import("./pages/Registercreator"));
+const About = lazy(() => import("./pages/About"));
+const Map = lazy(() => import("./pages/map"));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const Blog = lazy(() => import("./pages/Blog"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const CreatorDashboard = lazy(() => import("./pages/CreatorDashboard"));
+const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
+const Profile = lazy(() => import("./pages/Profile"));
+const CityCreators = lazy(() => import("./pages/CityCreators"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const VerificationTerms = lazy(() => import("./pages/VerificationTerms"));
+const Help = lazy(() => import("./pages/Help"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const CollabHub = lazy(() => import("./pages/CollabHub"));
+const Referrals = lazy(() => import("./pages/Referrals"));
+const Feed = lazy(() => import("./pages/Feed"));
+const EscrowBooking = lazy(() => import("./pages/EscrowBooking"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Editor = lazy(() => import("./pages/Editor"));
+const AdminOverview = lazy(() => import("./pages/admin/AdminOverview"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminVerification = lazy(() => import("./pages/admin/AdminVerification"));
+const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
+const AdminRankings = lazy(() => import("./pages/admin/AdminRankings"));
+const AdminFeatured = lazy(() => import("./pages/admin/AdminFeatured"));
+const AdminDisputes = lazy(() => import("./pages/admin/AdminDisputes"));
+const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminBlogs = lazy(() => import("./pages/admin/AdminBlogs"));
+const AdminMessages = lazy(() => import("./pages/admin/AdminMessages"));
+const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
 
 const queryClient = new QueryClient();
 
@@ -66,8 +65,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <Analytics />
+          <Seo />
           <BreachBanner />
-          <Routes>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/search" element={<Search />} />
             <Route path="/creator/:id" element={<CreatorProfile />} />
@@ -81,6 +83,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/registercreator" element={<Registercreator />} />
             <Route path="/register/creator" element={<Register />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<RoleGuard role="creator"><CreatorDashboard /></RoleGuard>} />
             <Route path="/client" element={<RoleGuard role="client"><ClientDashboard /></RoleGuard>} />
@@ -115,7 +118,8 @@ const App = () => (
             <Route path="/admin/payments" element={<AdminPayments />} />
 
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
@@ -123,4 +127,3 @@ const App = () => (
 );
 
 export default App;
-
