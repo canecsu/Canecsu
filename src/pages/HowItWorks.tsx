@@ -83,7 +83,7 @@ const HowItWorks = () => (
                   Creators can submit a ₹99 application/review fee from the dashboard. If activated, the platform badge stays active for 12 months and contributes up to 5 points in the 100-point ranking model.
                 </p>
                 <p className="mt-3 leading-relaxed text-muted-foreground">
-                  This is a CANECSU trust signal—not a Meta blue tick, government certificate, legal identity proof, or guarantee of bookings, income, or top ranking.
+                  This is a CANECSU trust signal—not a government certificate, legal identity proof, professional licence, or guarantee of bookings, income, or top ranking.
                 </p>
               </div>
               <Button variant="outline" className="shrink-0 rounded-full border-amber-300 bg-white/70" asChild>
