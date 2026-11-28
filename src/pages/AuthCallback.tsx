@@ -22,18 +22,39 @@ const AuthCallback = () => {
         return;
       }
 
-      const code = searchParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setErrorMessage(error.message);
-          toast.error(`Sign-in could not be completed: ${error.message}`);
-          window.setTimeout(() => navigate("/login", { replace: true }), 1600);
-          return;
-        }
-      }
+      // The Supabase client is configured with detectSessionInUrl=true, so it
+      // exchanges the PKCE code automatically. Calling exchangeCodeForSession
+      // here as well creates a race and can consume the one-time code twice.
+      // Wait for that automatic exchange to finish, while still supporting a
+      // session that was already restored before this route mounted.
+      const getSessionAfterOAuth = async () => {
+        const immediate = await supabase.auth.getSession();
+        if (immediate.data.session || !searchParams.get("code")) return immediate;
 
-      const { data, error } = await supabase.auth.getSession();
+        return await new Promise<typeof immediate>((resolve) => {
+          let settled = false;
+          let timeoutId: number | undefined;
+          const finish = (result: typeof immediate) => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId) window.clearTimeout(timeoutId);
+            subscription.unsubscribe();
+            resolve(result);
+          };
+
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+              if (session) finish({ data: { session }, error: null });
+            },
+          );
+
+          timeoutId = window.setTimeout(async () => {
+            finish(await supabase.auth.getSession());
+          }, 5000);
+        });
+      };
+
+      const { data, error } = await getSessionAfterOAuth();
       if (cancelled) return;
 
       if (error || !data.session) {
@@ -73,3 +94,4 @@ const AuthCallback = () => {
 };
 
 export default AuthCallback;
+
