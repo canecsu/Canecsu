@@ -63,7 +63,7 @@ export function VerificationDetailsDialog({ className }: VerificationDetailsDial
               <ShieldAlert className="h-4 w-4 text-amber-600" /> What this badge does not mean
             </h3>
             <p className="leading-relaxed text-muted-foreground">
-              It is a CANECSU platform badge—not a government certificate, legal identity proof, professional licence, or Meta-style blue tick. It does not guarantee a creator&apos;s work, bookings, income, top ranking, or a specific client outcome.
+              It is a CANECSU platform badge—not a government certificate, legal identity proof, or professional licence. It does not guarantee a creator&apos;s work, bookings, income, top ranking, or a specific client outcome.
             </p>
           </section>
 
