@@ -18,7 +18,7 @@ const terms = [
   },
   {
     title: "4. What the badge does not provide",
-    body: "The badge does not guarantee identity, portfolio originality, service quality, bookings, income, client satisfaction, a top ranking position, or a particular search placement. It is not the same as a Meta blue tick or any government-issued mark.",
+    body: "The badge does not guarantee identity, portfolio originality, service quality, bookings, income, client satisfaction, a top ranking position, or a particular search placement. It is not a government-issued mark.",
   },
   {
     title: "5. Creator responsibilities",
@@ -57,7 +57,7 @@ export default function VerificationTerms() {
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
               <h2 className="mb-2 flex items-center gap-2 font-bold text-amber-950"><ShieldAlert className="h-4 w-4" /> Important limit</h2>
-              <p className="text-sm leading-relaxed text-amber-900/80">This is not government, legal, identity, or Meta verification.</p>
+              <p className="text-sm leading-relaxed text-amber-900/80">This is not government, legal, identity, or professional verification.</p>
             </div>
           </div>
 
