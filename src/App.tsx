@@ -29,6 +29,7 @@ import CityCreators from "./pages/CityCreators";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import VerificationTerms from "./pages/VerificationTerms";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/verification-terms" element={<VerificationTerms />} />
             <Route path="/help" element={<Help />} />
             <Route path="/collab" element={<CollabHub />} />
             <Route path="/referrals" element={<Referrals />} />
@@ -121,3 +123,4 @@ const App = () => (
 );
 
 export default App;
+

@@ -1,4 +1,4 @@
--- Creator ranking scores and paid monthly verification badge
+-- Creator ranking scores and paid annual verification badge
 create table if not exists public.creator_verification_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -238,3 +238,4 @@ begin
   end loop;
 end;
 $$;
+

@@ -51,6 +51,7 @@ import {
 import { ImageUpload } from "@/components/shared/ImageUpload";
 import { ScheduleManager } from "@/components/booking/ScheduleManager";
 import { BookingsList } from "@/components/booking/BookingsList";
+import { VerificationDetailsDialog } from "@/components/shared/VerificationDetailsDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -307,7 +308,7 @@ const CreatorDashboard = () => {
         amount: 9900,
         currency: "INR",
         name: "Canecsu",
-        description: "Creator Verification Badge - 30 days",
+        description: "CANECSU Verified Creator application review - 12 months",
         order_id: orderData.orderId,
         handler: async (response: any) => {
           const { data: verificationData, error: verificationError } = await supabase.functions.invoke(
@@ -327,8 +328,8 @@ const CreatorDashboard = () => {
               description: verificationError?.message || verificationData?.error || "Please contact Canecsu support.",
             });
           } else {
-            toast.success("Creator Verification badge activated", {
-              description: "Your badge is active for 30 days and contributes 5 ranking points.",
+            toast.success("CANECSU Verified Creator badge activated", {
+              description: "Your badge is active for 12 months and contributes up to 5 ranking points.",
             });
             await fetchAll();
           }
@@ -706,14 +707,20 @@ const CreatorDashboard = () => {
                     <BadgeCheck className={`h-7 w-7 ${verificationBadge ? "text-amber-600" : "text-blue-600"}`} />
                   </div>
                   <div>
-                    <h2 className="font-heading font-black text-gray-900">
-                      {verificationBadge ? "Creator Verification Badge is active" : "Get the Creator Verification Badge"}
-                    </h2>
+                    <div className="flex items-center gap-1">
+                      <h2 className="font-heading font-black text-gray-900">
+                        {verificationBadge ? "CANECSU Verified Creator badge is active" : "Apply for the CANECSU Verified Creator badge"}
+                      </h2>
+                      <VerificationDetailsDialog />
+                    </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {verificationBadge
-                        ? `Active until ${new Date(verificationBadge.expires_at).toLocaleDateString("en-IN")}. It contributes 5 of 100 ranking points.`
-                        : "₹99 for 30 days. This is a paid platform badge, not an identity or government verification."}
+                        ? `Active until ${new Date(verificationBadge.expires_at).toLocaleDateString("en-IN")}. It contributes up to 5 of 100 ranking points.`
+                        : "₹99 application/review fee per application. If activated, the platform badge is valid for 12 months—not identity or government verification."}
                     </p>
+                    {!verificationBadge && (
+                      <p className="mt-2 text-xs font-semibold text-gray-500">See exactly what is included before you pay by opening the info button.</p>
+                    )}
                     {verificationBadge && (() => {
                       const reminder = getVerificationExpiryReminder(verificationBadge.expires_at);
                       return reminder ? (
@@ -736,7 +743,7 @@ const CreatorDashboard = () => {
                     className="rounded-full bg-amber-500 text-white hover:bg-amber-600 font-bold"
                   >
                   {badgePaymentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Crown className="h-4 w-4 mr-2" />}
-                  {verificationBadge ? "Renew for ₹99" : "Activate for ₹99"}
+                  {verificationBadge ? "Renew for ₹99" : "Apply for ₹99 review"}
                 </Button>
                 </div>
               </CardContent>
@@ -1382,3 +1389,4 @@ const CreatorDashboard = () => {
 };
 
 export default CreatorDashboard;
+

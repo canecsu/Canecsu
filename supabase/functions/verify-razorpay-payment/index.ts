@@ -49,7 +49,7 @@ serve(async (req) => {
     }
 
 
-    // Creator Verification is a separate ₹99 / 30-day badge. It never changes
+    // Creator Verification is a separate ₹99 / 12-month platform badge. It never changes
     // the official identity-verification flag on profiles.
     if (planName === "Creator Verification") {
       if (Number(amount) !== 99 || !userId) {
@@ -110,7 +110,7 @@ serve(async (req) => {
       const startsAt = currentBadge?.expires_at && new Date(currentBadge.expires_at) > now
         ? new Date(currentBadge.expires_at)
         : now;
-      const expiresAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(startsAt.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
       const { error: badgeError } = await adminClient
         .from("creator_verification_subscriptions")
         .insert({
@@ -223,3 +223,4 @@ serve(async (req) => {
     );
   }
 });
+

@@ -45,13 +45,23 @@ export function ProjectComments({ portfolioItemId, className }: ProjectCommentsP
 
     if (!data) return;
 
+    const commentIds = data.map(c => c.id);
+    const { data: likeRows } = commentIds.length > 0
+      ? await supabase.from("comment_likes").select("comment_id").in("comment_id", commentIds)
+      : { data: [] };
+    const likeCounts: Record<string, number> = {};
+    (likeRows || []).forEach((like) => {
+      likeCounts[like.comment_id] = (likeCounts[like.comment_id] || 0) + 1;
+    });
+
     // Fetch user's likes
     let likedIds: string[] = [];
-    if (user) {
+    if (user && commentIds.length > 0) {
       const { data: likes } = await supabase
         .from("comment_likes")
         .select("comment_id")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .in("comment_id", commentIds);
       likedIds = (likes || []).map(l => l.comment_id);
     }
 
@@ -61,7 +71,8 @@ export function ProjectComments({ portfolioItemId, className }: ProjectCommentsP
     data.forEach(c => {
       const comment: Comment = {
         ...c,
-        profile: c.profiles as any,
+        likes_count: likeCounts[c.id] ?? c.likes_count ?? 0,
+        profile: c.profiles as Comment["profile"],
         replies: [],
         isLiked: likedIds.includes(c.id),
       };
@@ -100,12 +111,14 @@ export function ProjectComments({ portfolioItemId, className }: ProjectCommentsP
 
   const toggleLike = async (commentId: string, isLiked: boolean) => {
     if (!user) { toast.error("Please log in"); return; }
-    if (isLiked) {
-      await supabase.from("comment_likes").delete().eq("comment_id", commentId).eq("user_id", user.id);
-    } else {
-      await supabase.from("comment_likes").insert({ comment_id: commentId, user_id: user.id });
+    const result = isLiked
+      ? await supabase.from("comment_likes").delete().eq("comment_id", commentId).eq("user_id", user.id)
+      : await supabase.from("comment_likes").insert({ comment_id: commentId, user_id: user.id });
+    if (result.error) {
+      toast.error("Failed to update like");
+      return;
     }
-    fetchComments();
+    await fetchComments();
   };
 
   const deleteComment = async (commentId: string) => {
@@ -226,3 +239,4 @@ export function ProjectComments({ portfolioItemId, className }: ProjectCommentsP
     </div>
   );
 }
+

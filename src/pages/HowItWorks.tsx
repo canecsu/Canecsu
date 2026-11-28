@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, UserCheck, MessageCircle, CalendarCheck, Star, ArrowRight } from "lucide-react";
+import { Search, UserCheck, MessageCircle, CalendarCheck, Star, ArrowRight, BadgeCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -67,6 +67,31 @@ const HowItWorks = () => (
             </div>
           </div>
 
+          <div className="mb-20 rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-8 md:p-10">
+            <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-2xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
+                    <BadgeCheck className="h-7 w-7 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-amber-700">For creators</p>
+                    <h2 className="font-heading text-2xl font-bold">CANECSU Verified Creator badge</h2>
+                  </div>
+                </div>
+                <p className="leading-relaxed text-muted-foreground">
+                  Creators can submit a ₹99 application/review fee from the dashboard. If activated, the platform badge stays active for 12 months and contributes up to 5 points in the 100-point ranking model.
+                </p>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                  This is a CANECSU trust signal—not a Meta blue tick, government certificate, legal identity proof, or guarantee of bookings, income, or top ranking.
+                </p>
+              </div>
+              <Button variant="outline" className="shrink-0 rounded-full border-amber-300 bg-white/70" asChild>
+                <Link to="/verification-terms">Read verification terms <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+            </div>
+          </div>
+
           <div className="text-center bg-gradient-to-r from-primary/10 to-secondary/10 rounded-3xl p-12">
             <h2 className="font-heading text-3xl font-bold mb-4">Ready to Get Started?</h2>
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto">Join thousands of creators and clients already using Canecsu.</p>
@@ -83,3 +108,4 @@ const HowItWorks = () => (
 );
 
 export default HowItWorks;
+

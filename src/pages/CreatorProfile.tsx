@@ -219,11 +219,25 @@ export default function CreatorProfile() {
       return;
     }
 
-    setProjectComments(commentsData || []);
+    const commentIds = (commentsData || []).map((comment: any) => comment.id);
+    const likeCounts: Record<string, number> = {};
+    if (commentIds.length > 0) {
+      const { data: likeRows } = await supabase
+        .from('comment_likes')
+        .select('comment_id')
+        .in('comment_id', commentIds);
+      (likeRows || []).forEach((like) => {
+        likeCounts[like.comment_id] = (likeCounts[like.comment_id] || 0) + 1;
+      });
+    }
+
+    setProjectComments((commentsData || []).map((comment: any) => ({
+      ...comment,
+      likes_count: likeCounts[comment.id] ?? Number(comment.likes_count || 0),
+    })));
     setLikedComments({});
 
-    if (user && commentsData?.length > 0) {
-      const commentIds = commentsData.map((comment: any) => comment.id);
+    if (user && commentIds.length > 0) {
       const { data: userLikes } = await supabase
         .from('comment_likes')
         .select('comment_id')
@@ -273,8 +287,6 @@ export default function CreatorProfile() {
     if (!viewingRichProject) return;
 
     const shareUrl = window.location.href;
-    let shared = false;
-
     try {
       if (navigator.share) {
         await navigator.share({
@@ -282,27 +294,23 @@ export default function CreatorProfile() {
           text: `View ${viewingRichProject.title} on Canecsu`,
           url: shareUrl,
         });
-        shared = true;
+        const { error } = await (supabase.from('project_shares') as any).insert({
+          project_id: viewingRichProject.id,
+          user_id: user?.id ?? null,
+        });
+
+        if (error) {
+          console.error("Failed to record project share:", error);
+          toast.warning("Link shared, but share count could not be updated.");
+        } else {
+          setProjectSharesCount(count => count + 1);
+        }
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success("Project link copied");
-        shared = true;
+        toast.success("Project link copied. Share count was not changed.");
       } else {
-        shared = Boolean(window.prompt("Copy this project link:", shareUrl));
-      }
-
-      if (!shared) return;
-
-      const { error } = await (supabase.from('project_shares') as any).insert({
-        project_id: viewingRichProject.id,
-        user_id: user?.id ?? null,
-      });
-
-      if (error) {
-        console.error("Failed to record project share:", error);
-        toast.warning("Link shared, but share count could not be updated.");
-      } else {
-        setProjectSharesCount(count => count + 1);
+        window.prompt("Copy this project link:", shareUrl);
+        toast.info("Link shown for copying. Share count was not changed.");
       }
     } catch (error: any) {
       if (error?.name !== "AbortError") {
@@ -382,6 +390,7 @@ export default function CreatorProfile() {
         const { error } = await supabase.from('comment_likes').insert([{ comment_id: commentId, user_id: user!.id }]);
         if (error) throw error;
       }
+      if (viewingRichProject) await fetchComments(viewingRichProject.id);
     } catch (error) {
       setLikedComments(prev => ({ ...prev, [commentId]: isLiked }));
       setProjectComments(comments =>
@@ -1394,3 +1403,4 @@ ${quoteMessage}`;
     </div>
   );
 }
+
