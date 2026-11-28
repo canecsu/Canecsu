@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Calendar, Star, Search, Eye, Trash2, DollarSign, Clock, CheckCircle, XCircle, RefreshCw, Zap, CreditCard, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Calendar, Star, Search, Eye, Trash2, IndianRupee, Clock, CheckCircle, XCircle, RefreshCw, Zap, CreditCard, Loader2 } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -275,7 +275,7 @@ const ClientDashboard = () => {
                 { label: "Shortlisted", value: shortlists.length, icon: Heart, color: "text-red-500" },
                 { label: "Total Bookings", value: bookings.length, icon: Calendar, color: "text-blue-500" },
                 { label: "Active", value: activeBookings, icon: MessageCircle, color: "text-green-500" },
-                { label: "Total Spent", value: `₹${totalSpent.toLocaleString()}`, icon: DollarSign, color: "text-purple-500" },
+                { label: "Total Spent", value: `₹${totalSpent.toLocaleString()}`, icon: IndianRupee, color: "text-purple-500" },
                 { label: "Reviews Given", value: reviewCount, icon: Star, color: "text-yellow-500" },
               ].map(stat => (
                 <Card key={stat.label} className="border-gray-200 shadow-sm rounded-2xl hover:shadow-md transition-shadow">

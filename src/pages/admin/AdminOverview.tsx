@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Users, ShieldCheck, Flag, BarChart3, TrendingUp, Eye, DollarSign, Calendar } from "lucide-react";
+import { Users, ShieldCheck, Flag, BarChart3, TrendingUp, Eye, IndianRupee, Calendar } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAdminStats } from "@/hooks/useAdminData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +13,7 @@ export default function AdminOverview() {
     { label: "Active Creators", value: stats?.activeCreators?.toLocaleString() || "0", icon: TrendingUp, color: "text-secondary" },
     { label: "Total Bookings", value: stats?.totalBookings?.toLocaleString() || "0", icon: Calendar, color: "text-primary" },
     { label: "Avg. Rating", value: stats?.avgRating || "0", icon: BarChart3, color: "text-primary" },
-    { label: "Revenue (GMV)", value: `₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`, icon: DollarSign, color: "text-green-500" },
+    { label: "Revenue (GMV)", value: `₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`, icon: IndianRupee, color: "text-green-500" },
   ];
 
   return (
@@ -73,3 +73,4 @@ export default function AdminOverview() {
     </AdminLayout>
   );
 }
+

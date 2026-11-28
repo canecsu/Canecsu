@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { BarChart3, Users, DollarSign, Calendar, ArrowUpRight } from "lucide-react";
+import { BarChart3, Users, IndianRupee, Calendar, ArrowUpRight } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminStats, useCreatorsByCity } from "@/hooks/useAdminData";
@@ -35,7 +35,7 @@ export default function AdminReports() {
           {[
             { label: "Total Users", value: stats?.totalUsers?.toLocaleString() || "0", icon: Users, color: "text-primary" },
             { label: "Total Bookings", value: stats?.totalBookings?.toLocaleString() || "0", icon: Calendar, color: "text-secondary" },
-            { label: "Revenue (GMV)", value: `₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`, icon: DollarSign, color: "text-green-500" },
+            { label: "Revenue (GMV)", value: `₹${((stats?.totalRevenue || 0) / 100000).toFixed(1)}L`, icon: IndianRupee, color: "text-green-500" },
             { label: "Avg Rating", value: stats?.avgRating || "0", icon: BarChart3, color: "text-primary" },
           ].map((s) => (
             <div key={s.label} className="bg-card rounded-2xl p-5 shadow-sm border border-border">
@@ -109,3 +109,4 @@ export default function AdminReports() {
     </AdminLayout>
   );
 }
+

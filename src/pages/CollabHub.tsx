@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom"; // 🔥 IMPORT ADDED
 import { 
-  Plus, Briefcase, MapPin, Calendar, DollarSign, Users, 
+  Plus, Briefcase, MapPin, Calendar, IndianRupee, Users, 
   ChevronRight, Send, Check, X, Search, Filter, Sparkles, Clock 
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
@@ -377,7 +377,7 @@ export default function CollabHub() {
                             <div className="grid grid-cols-2 gap-2 py-3 border-y border-border/40">
                               <div className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-semibold text-muted-foreground flex items-center gap-1">
-                                  <DollarSign className="h-3 w-3" /> Budget
+                                  <IndianRupee className="h-3 w-3" /> Budget
                                 </span>
                                 <span className="text-sm font-medium">
                                   {project.budget_max > 0 ? `₹${project.budget_min.toLocaleString()} - ${project.budget_max.toLocaleString()}` : 'Negotiable'}
@@ -471,7 +471,7 @@ export default function CollabHub() {
                         <div>
                           <p className="font-medium text-sm mb-1 line-clamp-2">"{app.message || "I am interested in this role."}"</p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> Proposed: ₹{app.proposed_price.toLocaleString()}</span>
+                            <span className="flex items-center gap-1"><IndianRupee className="h-3 w-3" /> Proposed: ₹{app.proposed_price.toLocaleString()}</span>
                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(app.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
@@ -639,3 +639,4 @@ export default function CollabHub() {
     </div>
   );
 }
+

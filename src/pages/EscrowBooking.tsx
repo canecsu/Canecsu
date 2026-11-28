@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Shield, Lock, CreditCard, CheckCircle, AlertCircle, Clock, ArrowRight, DollarSign } from "lucide-react";
+import { Shield, Lock, CreditCard, CheckCircle, AlertCircle, Clock, ArrowRight, IndianRupee } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,7 @@ export default function EscrowBooking() {
                 { icon: CreditCard, title: "Client Pays", desc: "Advance payment when booking" },
                 { icon: Lock, title: "Held Securely", desc: "Platform holds the funds" },
                 { icon: CheckCircle, title: "Work Completed", desc: "Creator delivers the work" },
-                { icon: DollarSign, title: "Payment Released", desc: "Creator gets paid (minus 10% fee)" },
+                { icon: IndianRupee, title: "Payment Released", desc: "Creator gets paid (minus 10% fee)" },
               ].map((step, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                   className="bg-card rounded-2xl p-5 shadow-card text-center border border-border/50 relative">
@@ -142,3 +142,4 @@ export default function EscrowBooking() {
     </div>
   );
 }
+

@@ -7,7 +7,7 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardList,
-  DollarSign,
+  IndianRupee,
   FileText,
   LayoutDashboard,
   Menu,
@@ -52,7 +52,7 @@ const workspaceMeta: Record<Workspace, {
       { label: "Shortlist", to: "/client#shortlist", icon: Star },
       { label: "Bookings", to: "/client#bookings", icon: CalendarDays },
       { label: "Messages", to: "/messages", icon: MessageCircle },
-      { label: "Payments", to: "/client#payments", icon: DollarSign },
+      { label: "Payments", to: "/client#payments", icon: IndianRupee },
       { label: "Help & settings", to: "/help", icon: Settings },
     ],
   },
@@ -66,7 +66,7 @@ const workspaceMeta: Record<Workspace, {
       { label: "Portfolio", to: "/portfolio/editor", icon: Package },
       { label: "Requests", to: "/dashboard#requests", icon: ClipboardList },
       { label: "Bookings", to: "/dashboard#bookings", icon: CalendarDays },
-      { label: "Earnings", to: "/dashboard#earnings", icon: DollarSign },
+      { label: "Earnings", to: "/dashboard#earnings", icon: IndianRupee },
       { label: "Verification", to: "/verification-terms", icon: ShieldCheck },
       { label: "Analytics", to: "/dashboard#analytics", icon: BarChart3 },
       { label: "Messages", to: "/messages", icon: MessageCircle },
@@ -83,7 +83,7 @@ const workspaceMeta: Record<Workspace, {
       { label: "User operations", to: "/admin/users", icon: Users },
       { label: "Verification queue", to: "/admin/verification", icon: CheckCircle2 },
       { label: "Content & reports", to: "/admin/content", icon: FileText },
-      { label: "Payments & disputes", to: "/admin/payments", icon: DollarSign },
+      { label: "Payments & disputes", to: "/admin/payments", icon: IndianRupee },
       { label: "Rankings & featured", to: "/admin/rankings", icon: Star },
       { label: "Help center", to: "/admin/messages", icon: CircleHelp },
       { label: "Settings & audit", to: "/admin/settings", icon: Settings },
@@ -123,8 +123,8 @@ export function WorkspaceShell({
   const sidebar = (
     <aside className="flex h-full min-h-screen w-[270px] shrink-0 flex-col bg-gradient-to-b from-[#0c2b5e] via-[#102052] to-[#18143b] px-4 py-6 text-white">
       <div className="flex items-center gap-3 px-3 pb-7">
-        <div className={cn("grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-base font-black shadow-lg", meta.accent)}>
-          C
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white p-1 shadow-lg">
+          <img src="/Canecsu Logo.png" alt="CANECSU logo" className="h-full w-full object-contain" />
         </div>
         <div>
           <p className="font-heading text-base font-extrabold tracking-wide">CANECSU</p>

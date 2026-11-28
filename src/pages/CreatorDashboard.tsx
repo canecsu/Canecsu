@@ -16,7 +16,7 @@ import {
   Trash2,
   Save,
   Upload,
-  DollarSign,
+  IndianRupee,
   Zap,
   CheckCircle,
   Layers,
@@ -763,7 +763,7 @@ const CreatorDashboard = () => {
                 { label: "Pending", value: pendingBookings.length, icon: Clock, color: "text-amber-500" },
                 { label: "Reviews", value: reviews.length, icon: Star, color: "text-yellow-500" },
                 { label: "Avg Rating", value: avgRating, icon: TrendingUp, color: "text-purple-500" },
-                { label: "Earnings", value: `₹${totalEarnings.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600" },
+                { label: "Earnings", value: `₹${totalEarnings.toLocaleString()}`, icon: IndianRupee, color: "text-emerald-600" },
               ].map(stat => (
                 <Card key={stat.label} className="border-gray-200 shadow-sm rounded-2xl">
                   <CardContent className="p-5">

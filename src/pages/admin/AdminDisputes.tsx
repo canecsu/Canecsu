@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { AlertOctagon, CheckCircle, Calendar, DollarSign } from "lucide-react";
+import { AlertOctagon, CheckCircle, Calendar, IndianRupee } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ export default function AdminDisputes() {
             { label: "Pending", value: pending.length, icon: AlertOctagon, color: "text-yellow-500" },
             { label: "Confirmed", value: confirmed.length, icon: Calendar, color: "text-primary" },
             { label: "Completed", value: completed.length, icon: CheckCircle, color: "text-secondary" },
-            { label: "Total Revenue", value: `₹${(totalRev / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-green-500" },
+            { label: "Total Revenue", value: `₹${(totalRev / 1000).toFixed(1)}K`, icon: IndianRupee, color: "text-green-500" },
           ].map((s) => (
             <div key={s.label} className="bg-card rounded-2xl p-5 shadow-sm border border-border">
               <s.icon className={`h-5 w-5 ${s.color} mb-2`} />
@@ -97,3 +97,4 @@ export default function AdminDisputes() {
     </AdminLayout>
   );
 }
+
