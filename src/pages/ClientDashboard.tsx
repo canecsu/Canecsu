@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, MessageCircle, Calendar, Star, Search, Eye, Trash2, DollarSign, Clock, CheckCircle, XCircle, RefreshCw, Zap, CreditCard, Loader2 } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
@@ -50,6 +50,8 @@ const statusConfig: Record<string, { color: string; variant: string; icon: any }
 const ClientDashboard = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState("bookings");
   const [shortlists, setShortlists] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [escrowPayments, setEscrowPayments] = useState<any[]>([]);
@@ -59,6 +61,13 @@ const ClientDashboard = () => {
   
   // New state to track if a payment is processing
   const [isProcessingPayment, setIsProcessingPayment] = useState<string | null>(null);
+
+  useEffect(() => {
+    const hash = location.hash.replace("#", "");
+    if (["bookings", "shortlist", "payments"].includes(hash)) {
+      setActiveTab(hash === "shortlist" ? "shortlisted" : hash);
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     if (!loading && !user) { navigate("/login"); return; }
@@ -279,7 +288,7 @@ const ClientDashboard = () => {
               ))}
             </div>
 
-            <Tabs defaultValue="bookings" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="bg-white shadow-sm border border-gray-200 w-full justify-start rounded-2xl p-2 h-auto flex-wrap">
                 <TabsTrigger value="bookings" className="rounded-xl font-bold">Bookings</TabsTrigger>
                 <TabsTrigger value="shortlisted" className="rounded-xl font-bold">Shortlisted</TabsTrigger>
