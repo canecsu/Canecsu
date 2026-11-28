@@ -26,8 +26,7 @@ import {
   MapPin,
   Loader2,
 } from "lucide-react";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -632,9 +631,8 @@ const CreatorDashboard = () => {
   const pendingBookings = bookings.filter(b => b.status === "pending");
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
-      <Header />
-      <main className="flex-1">
+    <WorkspaceShell workspace="creator">
+      <div className="flex-1 bg-[#F9FAFB]">
         <div className="container py-8 max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
 
@@ -790,7 +788,7 @@ const CreatorDashboard = () => {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="portfolio">
+              <TabsContent value="portfolio" id="portfolio">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-100">
                     <CardTitle className="text-lg font-bold text-gray-900">Your Projects</CardTitle>
@@ -916,7 +914,7 @@ const CreatorDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="bookings">
+              <TabsContent value="bookings" id="bookings">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold text-gray-900">Booking Requests</CardTitle>
@@ -927,11 +925,11 @@ const CreatorDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="schedule">
+              <TabsContent value="schedule" id="schedule">
                 {user && <ScheduleManager creatorId={user.id} />}
               </TabsContent>
 
-              <TabsContent value="services">
+              <TabsContent value="services" id="services">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 pb-4">
                     <div>
@@ -1096,7 +1094,7 @@ const CreatorDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="profile">
+              <TabsContent value="profile" id="profile">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 pb-4">
                     <CardTitle className="text-lg font-bold text-gray-900">Profile Information</CardTitle>
@@ -1331,7 +1329,7 @@ const CreatorDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="reviews">
+              <TabsContent value="reviews" id="reviews">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold text-gray-900">
@@ -1382,9 +1380,8 @@ const CreatorDashboard = () => {
             </Tabs>
           </motion.div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </WorkspaceShell>
   );
 };
 
