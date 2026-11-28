@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -116,6 +116,8 @@ const statusColors: Record<string, string> = {
 const CreatorDashboard = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState("portfolio");
 
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -131,6 +133,13 @@ const CreatorDashboard = () => {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
   );
+
+  useEffect(() => {
+    const hash = location.hash.replace("#", "");
+    if (["portfolio", "bookings", "schedule", "services", "profile", "reviews"].includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, [location.hash]);
   const [, setReminderTick] = useState(0);
 
   // Profile form
@@ -766,7 +775,7 @@ const CreatorDashboard = () => {
               ))}
             </div>
 
-            <Tabs defaultValue="portfolio" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="bg-white shadow-sm border border-gray-200 w-full justify-start rounded-2xl p-2 h-auto flex-wrap">
                 <TabsTrigger value="portfolio" className="rounded-xl font-bold">
                   Projects ({totalProjectsCount})
