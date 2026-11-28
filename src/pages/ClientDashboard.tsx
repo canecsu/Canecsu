@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, MessageCircle, Calendar, Star, Search, Eye, Trash2, DollarSign, Clock, CheckCircle, XCircle, RefreshCw, Zap, CreditCard, Loader2 } from "lucide-react";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { WorkspaceShell } from "@/components/workspace/WorkspaceShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -226,9 +225,8 @@ const ClientDashboard = () => {
   const totalSpent = bookings.filter(b => b.status === "completed").reduce((s: number, b: any) => s + (b.total_price || 0), 0);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
+    <WorkspaceShell workspace="client">
+      <div className="flex-1">
         <div className="container py-8 max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             
@@ -288,7 +286,7 @@ const ClientDashboard = () => {
                 <TabsTrigger value="payments" className="rounded-xl font-bold">Payments</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="bookings">
+              <TabsContent value="bookings" id="bookings">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader><CardTitle className="text-lg font-bold text-gray-900">Your Bookings</CardTitle></CardHeader>
                   <CardContent>
@@ -297,7 +295,7 @@ const ClientDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="shortlisted">
+              <TabsContent value="shortlisted" id="shortlist">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader className="flex flex-row items-center justify-between pb-4">
                     <CardTitle className="text-lg font-bold text-gray-900">Shortlisted Creators</CardTitle>
@@ -333,7 +331,7 @@ const ClientDashboard = () => {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="payments">
+              <TabsContent value="payments" id="payments">
                 <Card className="border-gray-200 shadow-sm rounded-2xl">
                   <CardHeader><CardTitle className="text-lg font-bold text-gray-900">Payment History</CardTitle></CardHeader>
                   <CardContent>
@@ -360,8 +358,6 @@ const ClientDashboard = () => {
             </Tabs>
           </motion.div>
         </div>
-      </main>
-
       <Dialog open={!!rescheduleBookingId} onOpenChange={(open) => !open && setRescheduleBookingId(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader><DialogTitle className="font-extrabold text-xl">Reschedule Booking</DialogTitle></DialogHeader>
@@ -380,9 +376,10 @@ const ClientDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <Footer />
-    </div>
+      </div>
+    </WorkspaceShell>
   );
 };
 
 export default ClientDashboard;
+
